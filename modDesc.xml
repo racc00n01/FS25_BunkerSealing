@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" standalone="no" ?>
+<modDesc descVersion="104">
+  <author>Racc00n</author>
+
+  <version>0.0.0.1</version>
+
+  <iconFilename>icon_customContracts.dds</iconFilename>
+
+  <multiplayer supported="true" />
+
+  <title>
+    <en>Advanced Silage Fementation</en>
+  </title>
+
+  <description>
+    <en>Proof of concept: bunker metadata + silage metadata + barn productivity boost when feeding silage.</en>
+  </description>
+
+  <multiplayer supported="false"/>
+
+  <extraSourceFiles>
+    <sourceFile filename="scripts/main.lua"/>
+  </extraSourceFiles>
+</modDesc>
