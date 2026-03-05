@@ -75,11 +75,12 @@ function BunkerSiloHUD.updateSilo(self, superFunc, dt)
         local fillLevelLabel = "Fill level: " .. tostring(math.ceil(self.fillLevel or 0)) .. " L"
         local compacted = "Compacted: " .. tostring(self.compactedPercent or 0) .. "%"
         local fermented = "Fermenting: " .. tostring(self.currentFermentingPercent or 0) .. "%"
-        local vehicleLabel = "Vehicle: " .. tostring(g_localPlayer:getCurrentVehicle():getName() or "None")
+        local currentVehicle = g_localPlayer:getCurrentVehicle()
+        local vehicleLabel = "Vehicle: " .. (currentVehicle ~= nil and tostring(currentVehicle:getName()) or "None")
         local vehicleMassLabel = string.format("Vehicle mass: %.1f T",
-          tostring(g_currentMission.ASF:getVehicleMassTons(g_localPlayer:getCurrentVehicle()) or 0))
+          tostring(g_currentMission.ASF:getVehicleMassTons(currentVehicle) or 0))
         local vehicleSpeedLabel = string.format("Vehicle speed: %.1f km/h",
-          g_localPlayer:getCurrentVehicle():getLastSpeed() or 0)
+          currentVehicle ~= nil and currentVehicle:getLastSpeed() or 0)
 
         BunkerSiloHUD.line1 = tostring(fillTypeLabel)
         BunkerSiloHUD.line2 = tostring(fillLevelLabel)
@@ -98,22 +99,25 @@ function BunkerSiloHUD.updateSilo(self, superFunc, dt)
           BunkerSiloHUD.line3 = tostring(compacted)
         end
 
-        -- ASF (asfAdvancedSilage) extra lines when near bunker
+        -- ASF (asfAdvancedSilage) state-based model: moisture, density, quality, fermentation, oxygen
         local asf = self.asfAdvancedSilage
         if asf ~= nil then
-          local moisturePct = math.floor((asf.avgMoisture or 0) * 100)
-          local compPct = math.floor((asf.compactionScore or 0) * 100)
-          local qualPct = math.floor((asf.qualityScore or 0) * 100)
-          local fermPct = math.floor((asf.fermentationScore or 0) * 100)
-          local oxyPct = math.floor((asf.oxygenDamage or 0) * 100)
-          local compactionDamagePct = math.floor((asf.compactionDamage or 0) * 100)
+          local moisturePct = math.floor((asf.moisture or asf.avgMoisture or 0) * 100)
+          local densityPct = math.floor((asf.density or 0) * 100)
+          local qualPct = asf.quality ~= nil and math.floor(asf.quality * 100) or nil
+          local fermPct = math.floor((asf.fermentation or 0) * 100)
+          local oxyPct = math.floor((asf.oxygen or 0) * 100)
           BunkerSiloHUD.line4 = string.format("Moisture: %d%%", moisturePct)
-          BunkerSiloHUD.line5 = string.format("Compaction damage: %d%%", compactionDamagePct)
-          BunkerSiloHUD.line6 = string.format("Quality: %d%%", compPct, qualPct)
+          BunkerSiloHUD.line5 = string.format("Density: %d%%", densityPct)
+          if qualPct ~= nil then
+            BunkerSiloHUD.line6 = string.format("Quality: %d%%", qualPct)
+          else
+            BunkerSiloHUD.line6 = ""
+          end
           if self.state == BunkerSilo.STATE_CLOSED or self.state == BunkerSilo.STATE_FERMENTED then
             BunkerSiloHUD.line7 = string.format("Fermentation: %d%%", fermPct)
           elseif self.state == BunkerSilo.STATE_DRAIN then
-            BunkerSiloHUD.line7 = string.format("Oxygen damage: %d%%", oxyPct)
+            BunkerSiloHUD.line7 = string.format("Oxygen: %d%%", oxyPct)
           end
         end
 

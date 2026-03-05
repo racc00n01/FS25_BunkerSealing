@@ -24,6 +24,6 @@
 
   <extraSourceFiles>
     <sourceFile filename="scripts/main.lua"/>
-    <sourceFile filename="scripts/HUD/BunkerSiloHud.lua"/>
+    <!-- <sourceFile filename="scripts/HUD/BunkerSiloHud.lua"/> -->
   </extraSourceFiles>
 </modDesc>
