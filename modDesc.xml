@@ -18,7 +18,12 @@
 
   <multiplayer supported="false"/>
 
+  <dependencies>
+    <dependency name="FS25_MoistureSystem" minVersion="1.0.0.0"/>
+  </dependencies>
+
   <extraSourceFiles>
     <sourceFile filename="scripts/main.lua"/>
+    <sourceFile filename="scripts/HUD/BunkerSiloHud.lua"/>
   </extraSourceFiles>
 </modDesc>

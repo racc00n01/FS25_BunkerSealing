@@ -20,20 +20,6 @@ local function asfPrint(fmt, ...)
     print(string.format("[ASF] " .. fmt, ...))
   end
 end
-
--- ------------------------------------------------------------------
--- Hook helpers
--- ------------------------------------------------------------------
-function ASF.overwrite(targetTable, fnName, newFn)
-  if targetTable == nil or targetTable[fnName] == nil then
-    asfPrint("WARN: cannot overwrite %s.%s (not found)", tostring(targetTable), tostring(fnName))
-    return false
-  end
-  targetTable[fnName] = Utils.overwrittenFunction(targetTable[fnName], newFn)
-  asfPrint("Hooked overwrite: %s.%s", tostring(targetTable), tostring(fnName))
-  return true
-end
-
 -- ------------------------------------------------------------------
 -- Utility: time + bunker data helpers
 -- ------------------------------------------------------------------
@@ -59,25 +45,14 @@ end
 -- Vehicle helpers (ported from Chowkidar mass logic)
 -- ------------------------------------------------------------------
 function ASF:findControlledVehicle()
-  local v = nil
+  local controlledVehicle = nil
 
-  if g_currentMission ~= nil then
-    v = g_currentMission.controlledVehicle
 
-    if v == nil and g_currentMission.player ~= nil and g_currentMission.player.getCurrentVehicle ~= nil then
-      v = g_currentMission.player:getCurrentVehicle()
-    end
+  if g_localPlayer ~= nil then
+    controlledVehicle = g_localPlayer:getCurrentVehicle()
   end
 
-  if v == nil and g_localPlayer ~= nil and g_localPlayer.getCurrentVehicle ~= nil then
-    v = g_localPlayer:getCurrentVehicle()
-  end
-
-  if v ~= nil and v.getRootVehicle ~= nil then
-    v = v:getRootVehicle()
-  end
-
-  return v
+  return controlledVehicle
 end
 
 function ASF:getVehicleMassTons(vehicle)
@@ -171,28 +146,18 @@ function ASF:getOrCreateBunkerData(bunker)
   return extra
 end
 
-function ASF:randomizeMoisture(bunker, extra)
-  -- Simple placeholder: 0–1 uniform
-  local value = math.random()
-  if value < 0 then
-    value = 0
-  elseif value > 1 then
-    value = 1
-  end
-  return value
-end
-
 function ASF:updateQualityScore(bunker, extra)
   if extra == nil then
     return
   end
 
-  local comp  = extra.compactionScore or 0
-  local ferm  = extra.fermentationScore or 0
-  local oxy   = extra.oxygenDamage or 0
+  local comp       = extra.compactionScore
+  local compDamage = extra.compactionDamage
+  local ferm       = extra.fermentationScore
+  local oxy        = extra.oxygenDamage
 
   -- Very simple placeholder model for now
-  local score = (comp * 0.4) + (ferm * 0.5) - (oxy * 0.3)
+  local score      = (comp * 0.4) + (ferm * 0.5) - (oxy * 0.3) - (compDamage * 0.2)
 
   if score < 0 then
     score = 0
@@ -201,6 +166,65 @@ function ASF:updateQualityScore(bunker, extra)
   end
 
   extra.qualityScore = score
+end
+
+-- ------------------------------------------------------------------
+-- Compaction gain from mass, speed, moisture (used by addCompactionFromVehicle / updateCompacting)
+-- Modifies extra.compactionScore in place. Call on server only.
+-- ------------------------------------------------------------------
+function ASF.calculateCompactionGain(vehicleMass, speedKmh, avgMoisture, dt, extra)
+  if extra == nil or dt <= 0 then
+    return
+  end
+
+  -- Weight factor: ideal 12,000 kg; below = less effective, above = diminishing; clamp [0.2, 2.0]
+  local weightFactor = vehicleMass / 12000
+  weightFactor = math.max(0.2, math.min(2.0, weightFactor))
+
+  -- Speed factor: optimal 4–8 km/h; below 3 = inefficient; above 14 = strongly reduced; above 18 = almost none
+  local speedFactor
+  local speedCompactionDamage = 0
+  if speedKmh < 3 then
+    speedFactor = 0.3 + (speedKmh / 3) * 0.2
+    speedCompactionDamage = 1
+  elseif speedKmh < 4 then
+    speedFactor = 0.5 + (speedKmh - 3) * 0.5
+    speedCompactionDamage = speedCompactionDamage + 0.1
+  elseif speedKmh <= 8 then
+    speedFactor = 1.0
+  elseif speedKmh <= 14 then
+    speedFactor = 1.0 - (speedKmh - 8) / 6 * 0.7
+    speedCompactionDamage = speedCompactionDamage + 0.1
+  elseif speedKmh <= 18 then
+    speedFactor = 0.3 - (speedKmh - 14) / 4 * 0.25
+    speedCompactionDamage = speedCompactionDamage + 0.2
+  else
+    speedFactor = 0.05
+  end
+  speedFactor = math.max(0, math.min(1, speedFactor))
+
+  extra.compactionDamage = speedCompactionDamage
+
+  -- Moisture factor: ideal 0.30–0.40; too dry <0.25 or very wet >0.55 reduces; clamp [0.5, 1.0]
+  local moistureFactor
+  if avgMoisture < 0.25 then
+    moistureFactor = 0.5 + (avgMoisture / 0.25) * 0.2
+  elseif avgMoisture < 0.30 then
+    moistureFactor = 0.7 + (avgMoisture - 0.25) / 0.05 * 0.3
+  elseif avgMoisture <= 0.40 then
+    moistureFactor = 1.0
+  elseif avgMoisture <= 0.55 then
+    moistureFactor = 1.0 - (avgMoisture - 0.40) / 0.15 * 0.15
+  else
+    moistureFactor = math.max(0.5, 0.85 - (avgMoisture - 0.55) * 0.7)
+  end
+  moistureFactor = math.max(0.5, math.min(1.0, moistureFactor))
+
+  -- Gain = base * factors * dt * (1 - score) so compaction slows as score -> 1
+  local baseGain = 0.12
+  local currentScore = extra.compactionScore or 0
+  local gain = baseGain * weightFactor * speedFactor * moistureFactor * dt * (1 - currentScore)
+  extra.compactionScore = math.min(1.0, currentScore + gain - speedCompactionDamage)
 end
 
 -- ------------------------------------------------------------------
@@ -216,92 +240,25 @@ function ASF:addCompactionFromVehicle(bunker, vehicle, dt)
     return
   end
 
-  -- FS dt is in ms; convert to seconds for tuning
   dt = (dt or 0) * 0.001
   if dt <= 0 then
     return
   end
 
-  ----------------------------------------------------------------------
-  -- Vehicle inputs
-  ----------------------------------------------------------------------
-  -- Use Chowkidar-style mass (tons -> kg)
-  local massTons = ASF:getVehicleMassTons(vehicle)
-  local mass     = massTons * 1000 -- kg
-
-  local speedMs  = 0
+  local massKg = ASF:getVehicleMassTons(vehicle) * 1000
+  local speedKmh = 0
   if vehicle.getLastSpeed ~= nil then
-    speedMs = vehicle:getLastSpeed()
+    speedKmh = vehicle:getLastSpeed() * 3.6
   end
-  local speedKmh       = speedMs * 3.6
-
-  -- For now we ignore special compacter strength and rely purely on mass
-  local compStrength   = 1.0
-
-  ----------------------------------------------------------------------
-  -- Factors
-  ----------------------------------------------------------------------
-  local massRef        = 10000 -- 10 t reference
-  local massFactor     = math.min(mass / massRef, 2.0)
-
-  local optimalSpeed   = 6.0                                         -- km/h
-  local speedDiff      = math.abs(speedKmh - optimalSpeed)
-  local speedFactor    = math.max(0, 1 - (speedDiff / optimalSpeed)) -- 0..1
-
-  local overdriveSpeed = 15.0                                        -- km/h: above this is “too fast”
-  local isOverdrive    = speedKmh > overdriveSpeed
-
-  local moisture       = extra.avgMoisture or 0
-  if moisture <= 0 then
-    -- fallback if not sealed yet / not randomized
-    moisture = 0.65
+  local avgMoisture = extra.avgMoisture
+  if avgMoisture == nil or avgMoisture <= 0 then
+    avgMoisture = 0.65
   end
 
-  local optMoisture       = 0.65
-  local moistDiff         = moisture - optMoisture
-  -- parabola: optimal moisture = 1, farther away reduces efficiency
-  local moistureFactor    = math.max(0.3, 1 - (moistDiff * moistDiff) / 0.09)
-
-  -- Rough “layer thickness”: more material → smaller effect per pass
-  local fillLevel         = bunker.fillLevel or 0
-  local layerThickness    = math.max(0.5, fillLevel / 400000)
-
-  ----------------------------------------------------------------------
-  -- Raw work & diminishing returns
-  ----------------------------------------------------------------------
-  local baseWorkPerSecond = 1.0 -- master gain knob for tuning
-  local rawWork           = baseWorkPerSecond * dt * compStrength * massFactor * speedFactor * moistureFactor
-
-  if rawWork <= 0 then
-    return
-  end
-
-  extra.cumulativeCompactionWork = (extra.cumulativeCompactionWork or 0) + rawWork
-
-  -- diminishing returns: more total work → less efficient
-  local alpha                    = 0.5
-  local effFactor                = 1 / (1 + alpha * extra.cumulativeCompactionWork)
-
-  local deltaScore               = (rawWork * effFactor) / layerThickness
-
-  extra.compactionScore          = extra.compactionScore or 0
-  extra.compactionScore          = math.max(0, math.min(1, extra.compactionScore + deltaScore))
-
-  ----------------------------------------------------------------------
-  -- Over-driving penalty
-  ----------------------------------------------------------------------
-  if isOverdrive then
-    extra.compactionDamage = (extra.compactionDamage or 0) + dt * 0.02
-    if extra.compactionDamage > 1 then
-      extra.compactionDamage = 1
-    end
-
-    local penalty = dt * 0.01 * extra.compactionDamage
-    extra.compactionScore = math.max(0, extra.compactionScore - penalty)
-  end
+  ASF.calculateCompactionGain(massKg, speedKmh, avgMoisture, dt, extra)
 
   extra.lastCompactionHour = ASF:getCurrentHour() or 0
-  if vehicle ~= nil and vehicle.id ~= nil then
+  if vehicle.id ~= nil then
     extra.lastCompactorId = vehicle.id
   end
 
@@ -350,9 +307,6 @@ function ASF:bunkerSetState(superFunc, state, showNotification)
   elseif state == BunkerSilo.STATE_CLOSED then
     if extra.sealedAtHour == 0 then
       extra.sealedAtHour = hour
-      if extra.avgMoisture == 0 then
-        extra.avgMoisture = ASF:randomizeMoisture(self, extra)
-      end
     end
   elseif state == BunkerSilo.STATE_FERMENTED then
     if extra.fermentedAtHour == 0 then
@@ -406,6 +360,7 @@ function ASF:bunkerUpdateFillLevel(superFunc)
 
   if delta > 0 and self.state == BunkerSilo.STATE_FILL then
     extra.totalGrassAdded = (extra.totalGrassAdded or 0) + delta
+    -- avgMoisture is set only from discharge moisture tracking (applyBunkerMoistureFromDischarge), not from fill delta
 
     if oldFillLevel <= 0 and extra.createdAtHour == 0 then
       extra.createdAtHour = ASF:getCurrentHour()
@@ -471,6 +426,148 @@ function ASF:bunkerOnChangedFillLevelCallback(superFunc, vehicle, fillDelta, fil
   end
 end
 
+function ASF:findBunkerContainingPoint(worldX, worldZ)
+  if g_currentMission == nil or g_currentMission.placeableSystem == nil then
+    return nil
+  end
+  local placeables = g_currentMission.placeableSystem:getBunkerSilos()
+  if placeables == nil then
+    return nil
+  end
+  for _, placeable in ipairs(placeables) do
+    local bunker = nil
+    if placeable.spec_bunkerSilo ~= nil and placeable.spec_bunkerSilo.bunkerSilo ~= nil then
+      bunker = placeable.spec_bunkerSilo.bunkerSilo
+    elseif placeable.spec_multiBunkerSilo ~= nil and placeable.spec_multiBunkerSilo.bunkerSilos ~= nil and #placeable.spec_multiBunkerSilo.bunkerSilos > 0 then
+      bunker = placeable.spec_multiBunkerSilo.bunkerSilos[1]
+    end
+    if bunker ~= nil and bunker.bunkerSiloArea ~= nil and bunker.state == BunkerSilo.STATE_FILL then
+      local a = bunker.bunkerSiloArea
+      local minX = math.min(a.sx, a.wx, a.hx)
+      local maxX = math.max(a.sx, a.wx, a.hx)
+      local minZ = math.min(a.sz, a.wz, a.hz)
+      local maxZ = math.max(a.sz, a.wz, a.hz)
+      if worldX >= minX and worldX <= maxX and worldZ >= minZ and worldZ <= maxZ then
+        return bunker
+      end
+    end
+  end
+  return nil
+end
+
+-- Update bunker ASF moisture from a discharge (volume-weighted average).
+function ASF:applyBunkerMoistureFromDischarge(bunker, vehicle, dischargeNode, liters, moistureSystem)
+  if bunker == nil or vehicle == nil or liters <= 0 or moistureSystem == nil then
+    return
+  end
+  local fillType = nil
+  if vehicle.getDischargeFillType ~= nil then
+    fillType = vehicle:getDischargeFillType(dischargeNode)
+  end
+  if fillType == nil then
+    return
+  end
+  local sourceMoisture = moistureSystem:getObjectMoisture(vehicle.uniqueId, fillType)
+  if sourceMoisture == nil then
+    sourceMoisture = moistureSystem:getDefaultMoisture()
+  end
+  if sourceMoisture == nil then
+    sourceMoisture = 0.65
+  end
+  local extra = ASF:getOrCreateBunkerData(bunker)
+  extra.moistureSum = (extra.moistureSum or 0) + (sourceMoisture * liters)
+  extra.totalLitersForMoisture = (extra.totalLitersForMoisture or 0) + liters
+  if extra.totalLitersForMoisture > 0 then
+    extra.avgMoisture = extra.moistureSum / extra.totalLitersForMoisture
+  end
+  asfPrint("Bunker moisture: +%.0f L @ %.2f -> avg %.2f", liters, sourceMoisture, extra.avgMoisture or 0)
+end
+
+function ASF:dischargeToGround(superFunc, dischargeNode, emptyLiters)
+  -- Call original function
+  local dischargedLiters, minDropReached, hasMinDropFillLevel = superFunc(self, dischargeNode, emptyLiters)
+
+  -- Only track on server and if something was actually discharged
+  -- Note: dischargedLiters is negative when discharging (e.g., -7 means 7 liters discharged)
+  if not self.isServer or dischargedLiters == 0 then
+    return dischargedLiters, minDropReached, hasMinDropFillLevel
+  end
+
+  local tracker = g_currentMission.groundPropertyTracker
+
+  -- Get filltype
+  local fillType = self:getDischargeFillType(dischargeNode)
+  if fillType == nil then
+    return dischargedLiters, minDropReached, hasMinDropFillLevel
+  end
+
+  -- Get moisture from vehicle's fillType if available
+  local moistureSystem = g_currentMission.MoistureSystem
+  local moisture = nil
+
+  if moistureSystem and self.uniqueId then
+    moisture = moistureSystem:getObjectMoisture(self.uniqueId, fillType)
+  end
+
+  -- Get discharge area coordinates
+  local info = dischargeNode.info
+  local sx, sy, sz = localToWorld(info.node, -info.width, 0, info.zOffset)
+  local ex, ey, ez = localToWorld(info.node, info.width, 0, info.zOffset)
+
+  -- Adjust Y to terrain if needed
+  if info.limitToGround then
+    sy = getTerrainHeightAtWorldPos(g_terrainNode, sx, 0, sz) + 0.1
+    ey = getTerrainHeightAtWorldPos(g_terrainNode, ex, 0, ez) + 0.1
+  else
+    sy = sy + info.yOffset
+    ey = ey + info.yOffset
+  end
+
+  -- Calculate center point for tracking
+  local centerX = (sx + ex) / 2
+  local centerZ = (sz + ez) / 2
+
+  -- Apply bunker moisture from discharge
+  local bunker = ASF:findBunkerContainingPoint(centerX, centerZ)
+  if bunker ~= nil and moistureSystem ~= nil then
+    ASF:applyBunkerMoistureFromDischarge(bunker, self, dischargeNode, math.abs(dischargedLiters), moistureSystem)
+  end
+
+  -- Calculate bounding box corners for tracking
+  local length = info.length or 0
+  local width = math.sqrt((ex - sx) ^ 2 + (ez - sz) ^ 2)
+
+  -- Create corner coordinates for pile tracking
+  -- Using simplified rectangle aligned with discharge direction
+  local halfWidth = width / 2
+  local halfLength = length / 2
+
+  local corner1X = centerX - halfWidth
+  local corner1Z = centerZ - halfLength
+  local corner2X = centerX + halfWidth
+  local corner2Z = centerZ - halfLength
+  local corner3X = centerX - halfWidth
+  local corner3Z = centerZ + halfLength
+
+  -- Track the pile with moisture
+  -- Use absolute value since dischargedLiters is negative
+  tracker:addPile(
+    corner1X, corner1Z,
+    corner2X, corner2Z,
+    corner3X, corner3Z,
+    fillType,
+    math.abs(dischargedLiters),
+    { moisture = moisture }
+  )
+
+  -- Clean up moisture tracking if vehicle is now empty of this fillType
+  if not moistureSystem:hasFillType(self.uniqueId, fillType) then
+    moistureSystem:setObjectMoisture(self.uniqueId, fillType, nil)
+  end
+
+  return dischargedLiters, minDropReached, hasMinDropFillLevel
+end
+
 -- ------------------------------------------------------------------
 -- Save/load helpers for bunker data persistence
 -- ------------------------------------------------------------------
@@ -486,15 +583,17 @@ function ASF:saveBunkerDataToXML(xmlFile, key, bunker)
 
   local asfKey = key .. ".asfAdvancedSilage"
 
-  setXMLFloat(xmlFile, asfKey .. "#compactionScore", extra.compactionScore or 0)
-  setXMLFloat(xmlFile, asfKey .. "#cumulativeCompactionWork", extra.cumulativeCompactionWork or 0)
-  setXMLFloat(xmlFile, asfKey .. "#compactionDamage", extra.compactionDamage or 0)
-  setXMLFloat(xmlFile, asfKey .. "#avgMoisture", extra.avgMoisture or 0)
-  setXMLFloat(xmlFile, asfKey .. "#sealedAtHour", extra.sealedAtHour or 0)
-  setXMLFloat(xmlFile, asfKey .. "#fermentedAtHour", extra.fermentedAtHour or 0)
-  setXMLFloat(xmlFile, asfKey .. "#openedAtHour", extra.openedAtHour or 0)
-  setXMLFloat(xmlFile, asfKey .. "#totalGrassAdded", extra.totalGrassAdded or 0)
-  setXMLFloat(xmlFile, asfKey .. "#totalSilageRemoved", extra.totalSilageRemoved or 0)
+  print("saveBunkerDataToXML", extra.compactionScore)
+
+  setXMLFloat(xmlFile.xmlFile, asfKey .. "#compactionScore", extra.compactionScore or 0)
+  setXMLFloat(xmlFile.xmlFile, asfKey .. "#cumulativeCompactionWork", extra.cumulativeCompactionWork or 0)
+  setXMLFloat(xmlFile.xmlFile, asfKey .. "#compactionDamage", extra.compactionDamage or 0)
+  setXMLFloat(xmlFile.xmlFile, asfKey .. "#avgMoisture", extra.avgMoisture or 0)
+  setXMLFloat(xmlFile.xmlFile, asfKey .. "#sealedAtHour", extra.sealedAtHour or 0)
+  setXMLFloat(xmlFile.xmlFile, asfKey .. "#fermentedAtHour", extra.fermentedAtHour or 0)
+  setXMLFloat(xmlFile.xmlFile, asfKey .. "#openedAtHour", extra.openedAtHour or 0)
+  setXMLFloat(xmlFile.xmlFile, asfKey .. "#totalGrassAdded", extra.totalGrassAdded or 0)
+  setXMLFloat(xmlFile.xmlFile, asfKey .. "#totalSilageRemoved", extra.totalSilageRemoved or 0)
 end
 
 function ASF:loadBunkerDataFromXML(xmlFile, key, bunker)
@@ -502,26 +601,32 @@ function ASF:loadBunkerDataFromXML(xmlFile, key, bunker)
     return
   end
 
+  -- unwrap xml id safely
+  local xmlId = xmlFile
+  if type(xmlFile) == "table" and xmlFile.xmlFile ~= nil then
+    xmlId = xmlFile
+  end
+
   local extra = ASF:getOrCreateBunkerData(bunker)
   local asfKey = key .. ".asfAdvancedSilage"
 
   local function get(name, default)
-    local v = getXMLFloat(xmlFile, asfKey .. "#" .. name)
+    local v = getXMLFloat(xmlId.xmlFile, asfKey .. "#" .. name)
     if v == nil then
       return default
     end
     return v
   end
 
-  extra.compactionScore          = get("compactionScore", extra.compactionScore or 0)
-  extra.cumulativeCompactionWork = get("cumulativeCompactionWork", extra.cumulativeCompactionWork or 0)
-  extra.compactionDamage         = get("compactionDamage", extra.compactionDamage or 0)
-  extra.avgMoisture              = get("avgMoisture", extra.avgMoisture or 0)
-  extra.sealedAtHour             = get("sealedAtHour", extra.sealedAtHour or 0)
-  extra.fermentedAtHour          = get("fermentedAtHour", extra.fermentedAtHour or 0)
-  extra.openedAtHour             = get("openedAtHour", extra.openedAtHour or 0)
-  extra.totalGrassAdded          = get("totalGrassAdded", extra.totalGrassAdded or 0)
-  extra.totalSilageRemoved       = get("totalSilageRemoved", extra.totalSilageRemoved or 0)
+  extra.compactionScore          = get("compactionScore", 0)
+  extra.cumulativeCompactionWork = get("cumulativeCompactionWork", 0)
+  extra.compactionDamage         = get("compactionDamage", 0)
+  extra.avgMoisture              = get("avgMoisture", 0)
+  extra.sealedAtHour             = get("sealedAtHour", 0)
+  extra.fermentedAtHour          = get("fermentedAtHour", 0)
+  extra.openedAtHour             = get("openedAtHour", 0)
+  extra.totalGrassAdded          = get("totalGrassAdded", 0)
+  extra.totalSilageRemoved       = get("totalSilageRemoved", 0)
 
   ASF:updateQualityScore(bunker, extra)
 end
@@ -549,55 +654,38 @@ function ASF:placeableBunkerLoadFromXML(superFunc, xmlFile, key)
   return ret
 end
 
--- ------------------------------------------------------------------
--- Hook installation (with retry)
--- ------------------------------------------------------------------
-function ASF:installHooks()
-  local ok = true
+-- Hook into Dischargeable specialization
+Dischargeable.dischargeToGround = Utils.overwrittenFunction(
+  Dischargeable.dischargeToGround,
+  ASF.dischargeToGround
+)
 
-  if BunkerSilo ~= nil then
-    ok = ASF.overwrite(BunkerSilo, "setState", ASF.bunkerSetState) and ok
-    ok = ASF.overwrite(BunkerSilo, "update", ASF.bunkerUpdate) and ok
-    ok = ASF.overwrite(BunkerSilo, "updateFillLevel", ASF.bunkerUpdateFillLevel) and ok
-    ok = ASF.overwrite(BunkerSilo, "updateCompacting", ASF.bunkerUpdateCompacting) and ok
-    ok = ASF.overwrite(BunkerSilo, "onHourChanged", ASF.bunkerOnHourChanged) and ok
-    ok = ASF.overwrite(BunkerSilo, "onChangedFillLevelCallback", ASF.bunkerOnChangedFillLevelCallback) and ok
-  else
-    ok = false
-    asfPrint("WARN: BunkerSilo not loaded yet")
-  end
+Utils.overwrittenFunction(BunkerSilo.setState, ASF.bunkerSetState)
+BunkerSilo.update = Utils.overwrittenFunction(BunkerSilo.update, ASF.bunkerUpdate)
+BunkerSilo.updateFillLevel = Utils.overwrittenFunction(BunkerSilo.updateFillLevel, ASF.bunkerUpdateFillLevel)
+BunkerSilo.updateCompacting = Utils.overwrittenFunction(BunkerSilo.updateCompacting, ASF.bunkerUpdateCompacting)
+BunkerSilo.onHourChanged = Utils.overwrittenFunction(BunkerSilo.onHourChanged, ASF.bunkerOnHourChanged)
+BunkerSilo.onChangedFillLevelCallback = Utils.overwrittenFunction(BunkerSilo.onChangedFillLevelCallback,
+  ASF.bunkerOnChangedFillLevelCallback)
 
-  if PlaceableBunkerSilo ~= nil then
-    ok = ASF.overwrite(PlaceableBunkerSilo, "saveToXMLFile", ASF.placeableBunkerSaveToXML) and ok
-    ok = ASF.overwrite(PlaceableBunkerSilo, "loadFromXMLFile", ASF.placeableBunkerLoadFromXML) and ok
-  else
-    ok = false
-    asfPrint("WARN: PlaceableBunkerSilo not loaded yet")
-  end
+PlaceableBunkerSilo.saveToXMLFile =
+    Utils.overwrittenFunction(
+      PlaceableBunkerSilo.saveToXMLFile,
+      ASF.placeableBunkerSaveToXML
+    )
 
-  if ok then
-    self._hooksInstalled = true
-    asfPrint("ASF bunker + compacter hooks installed")
-  end
-end
+PlaceableBunkerSilo.loadFromXMLFile =
+    Utils.overwrittenFunction(
+      PlaceableBunkerSilo.loadFromXMLFile,
+      ASF.placeableBunkerLoadFromXML
+    )
 
 -- ------------------------------------------------------------------
 -- Mod event listener
 -- ------------------------------------------------------------------
 function ASF:loadMap()
+  g_currentMission.ASF = self
   asfPrint("Loaded %s", ASF.modName)
-  self._hooksInstalled = false
-  self:installHooks()
-end
-
-function ASF:update(dt)
-  -- Retry hooks a few frames in case load order is late
-  if not self._hooksInstalled then
-    self._retry = (self._retry or 0) + 1
-    if self._retry < 200 then
-      self:installHooks()
-    end
-  end
 end
 
 function ASF:deleteMap()
