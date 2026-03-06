@@ -23,7 +23,24 @@
   </dependencies>
 
   <extraSourceFiles>
+    <sourceFile filename="scripts/SealTire.lua"/>
+    <sourceFile filename="scripts/bunker/BunkerManager.lua"/>
     <sourceFile filename="scripts/main.lua"/>
-    <!-- <sourceFile filename="scripts/HUD/BunkerSiloHud.lua"/> -->
   </extraSourceFiles>
+
+  <placeableSpecializations>
+    <specialization name="SealTire" className="SealTire" filename="scripts/SealTire.lua"/>
+  </placeableSpecializations>
+
+  <placeableTypes>
+    <type name="SealTirePlaceable" parent="Placeable">
+      <specialization name="SealTire"/>
+    </type>
+  </placeableTypes>
+
+  <l10n filenamePrefix="l10n/l10n"/>
+
+  <storeItems>
+    <storeItem xmlFilename="objects/tire.xml"/>
+  </storeItems>
 </modDesc>

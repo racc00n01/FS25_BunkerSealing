@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<placeable type="SealTirePlaceable">
+  <base>
+    <filename>objects/tire.i3d</filename>
+  </base>
+  <storeData>
+    <name>$l10n_asf_sealTire</name>
+    <species>placeable</species>
+    <image>store_moistureMeter.dds</image>
+    <category>decoration</category>
+    <price>50</price>
+    <lifetime>1000</lifetime>
+    <dailyUpkeep>0</dailyUpkeep>
+    <brand>LIZARD</brand>
+    <functions>
+      <function>$l10n_asf_sealTire_function</function>
+    </functions>
+  </storeData>
+  <i3dMappings/>
+</placeable>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<l10n>
+  <texts>
+    <text name="asf_sealTire" text="Seal Tire"/>
+    <text name="asf_sealTire_function" text="Place on a closed bunker to seal the foil. Grid cells under the tire turn sealed (green)."/>
+  </texts>
+</l10n>
