@@ -9,6 +9,7 @@ end
 
 function BunkerManager.new()
   local self = setmetatable({}, BunkerManager_mt)
+  self.asf = g_currentMission.AdvancedBunkers
   self.config = g_currentMission.AdvancedBunkers.config
   self.tracked = {}
   self.scanTimerMs = 0
@@ -68,9 +69,10 @@ function BunkerManager:getOrCreateBunkerData(bunker)
   end
 
   data.initialFillLevel = data.initialFillLevel or 0
-  data.sealEfficiency = data.sealEfficiency or 0
-  data.silageLoss = data.silageLoss or 0
-  data.lossApplied = data.lossApplied == true
+  data.sealEfficiency = data.sealEfficiency or 0   -- 0..1
+  data.silageLoss = data.silageLoss or 0           -- liters
+  data.lossApplied = data.lossApplied == true      -- boolean
+  data.finalFillLevel = data.finalFillLevel or nil -- liters
   data.oxygen = data.oxygen or 1.0
   data.tireWeight = data.tireWeight or 0
   data.baleWeight = data.baleWeight or 0
@@ -95,6 +97,7 @@ function BunkerManager:resetBunkerDataOnClose(bunker)
   data.sealEfficiency = 0
   data.silageLoss = 0
   data.lossApplied = false
+  data.finalFillLevel = nil
   data.oxygen = 1.0
   data.tireWeight = 0
   data.baleWeight = 0
@@ -279,8 +282,19 @@ function BunkerManager:scanBunkerCover(bunker, data, bales)
 end
 
 function BunkerManager:updateSealEfficiency(data)
-  local requiredWeight = math.max(1, #data.seal.cellPositions * self.config.requiredWeightPerCell)
-  data.sealEfficiency = clamp(data.coverWeight / requiredWeight, 0, 1)
+  local coveredByBale = data.seal.baleCoveredCells or {}
+  local numCells = #data.seal.cellPositions
+  local coveredCount = 0
+  for i = 1, numCells do
+    if coveredByBale[i] then coveredCount = coveredCount + 1 end
+  end
+  local coverageFraction = (numCells > 0) and (coveredCount / numCells) or 0
+
+  local requiredWeight = math.max(1, numCells * self.config.requiredWeightPerCell)
+  local weightBased = clamp(data.coverWeight / requiredWeight, 0, 1)
+
+  -- Use the better of coverage or weight: if almost all cells are under a bale, seal is good regardless of weight.
+  data.sealEfficiency = math.max(coverageFraction, weightBased)
 end
 
 function BunkerManager:updateOxygen(data, dtHours)
@@ -291,36 +305,159 @@ function BunkerManager:updateOxygen(data, dtHours)
   data.oxygen = clamp(data.oxygen, 0, 1)
 end
 
-function BunkerManager:applySilageLossIfNeeded(bunker, data)
+-- Remove silage loss from the density map using bucket-style negative tips.
+-- Distributes totalLossLiters proportionally across the bunker so the heap shape is preserved.
+function BunkerManager:removeSilageLossFromDensityMap(bunker, totalLossLiters)
+  if not DensityMapHeightUtil or not DensityMapHeightUtil.tipToGroundAroundLine then return 0 end
+  if not g_densityMapHeightManager or not g_densityMapHeightManager:getIsValid() then return 0 end
+  if not bunker or totalLossLiters == nil or totalLossLiters <= 0 then return 0 end
+
+  -- Use inner area for consistency with the game's fill-level calculations.
+  local area = bunker.bunkerSiloArea and bunker.bunkerSiloArea.inner or bunker.bunkerSiloArea
+  if area == nil then return 0 end
+
+  local dhx = area.dhx or ((area.hx or 0) - (area.sx or 0))
+  local dhz = area.dhz or ((area.hz or 0) - (area.sz or 0))
+  local hl = math.sqrt(dhx * dhx + dhz * dhz)
+  if hl <= 0 then return 0 end
+
+  -- Length direction (normalized).
+  local hx = (area.dhx_norm ~= nil and area.dhx_norm) or (dhx / hl)
+  local hz = (area.dhz_norm ~= nil and area.dhz_norm) or (dhz / hl)
+
+  -- Collect strips along bunker length and measure their volume.
+  local step = 0.5
+  local strips = {}
+  local totalLitersInBunker = 0
+  local fillTypes = { bunker.fermentingFillType, bunker.outputFillType }
+
+  local pos = 0
+  while pos < hl do
+    local s1 = pos
+    local s2 = math.min(pos + step, hl)
+    pos = s2
+
+    local x0 = area.sx + s1 * hx
+    local z0 = area.sz + s1 * hz
+    local x1 = area.wx + s1 * hx
+    local z1 = area.wz + s1 * hz
+    local x2 = area.sx + s2 * hx
+    local z2 = area.sz + s2 * hz
+
+    local typeVolumes = {}
+    local stripLiters = 0
+
+    for _, fillType in ipairs(fillTypes) do
+      if fillType ~= nil then
+        local liters = DensityMapHeightUtil.getFillLevelAtArea(fillType, x0, z0, x1, z1, x2, z2)
+        if liters > 0 then
+          typeVolumes[fillType] = liters
+          stripLiters = stripLiters + liters
+        end
+      end
+    end
+
+    if stripLiters > 0 then
+      table.insert(strips, {
+        s1 = s1,
+        s2 = s2,
+        stripLiters = stripLiters,
+        typeVolumes = typeVolumes
+      })
+      totalLitersInBunker = totalLitersInBunker + stripLiters
+    end
+  end
+
+  if totalLitersInBunker <= 0 then return 0 end
+
+  -- Second pass: remove proportionally per strip using negative tip operations.
+  local removedTotal = 0
+  for _, strip in ipairs(strips) do
+    if strip.stripLiters <= 0 then continue end
+
+    local stripLoss = totalLossLiters * (strip.stripLiters / totalLitersInBunker)
+    if stripLoss <= 0 then continue end
+
+    local sMid = (strip.s1 + strip.s2) * 0.5
+    local sx = area.sx + sMid * hx
+    local sz = area.sz + sMid * hz
+    local ex = area.wx + sMid * hx
+    local ez = area.wz + sMid * hz
+    local sy = self:getSurfaceYAtWorldXZ(sx, sz)
+    local ey = self:getSurfaceYAtWorldXZ(ex, ez)
+
+    local radius = 2.0
+    local innerRadius = 0
+
+    for fillType, litersInStripType in pairs(strip.typeVolumes) do
+      if litersInStripType > 0 then
+        local typeLoss = stripLoss * (litersInStripType / strip.stripLiters)
+        if typeLoss > 0 then
+          local delta = DensityMapHeightUtil.tipToGroundAroundLine(
+            nil,
+            -typeLoss,
+            fillType,
+            sx, sy, sz,
+            ex, ey, ez,
+            innerRadius,
+            radius,
+            nil,   -- lineOffset
+            false, -- limitToLineHeight
+            nil    -- occlusionAreas
+          )
+          if delta < 0 then
+            removedTotal = removedTotal + (-delta)
+          end
+        end
+      end
+    end
+
+    continue
+  end
+
+  return removedTotal
+end
+
+function BunkerManager:applySilageLossIfNeeded(bunker, data, px, py, pz)
   if data.lossApplied then return false end
-  if bunker.state ~= BunkerSilo.STATE_FERMENTED then return false end
+  if bunker.state ~= BunkerSilo.STATE_FERMENTED and bunker.state ~= BunkerSilo.STATE_DRAIN then return false end
+
+  -- If we never recorded initial fill (e.g. bunker was loaded already FERMENTED), use current fill from map.
+  if (data.initialFillLevel or 0) == 0 then
+    if bunker.updateFillLevel then
+      bunker:updateFillLevel()
+    end
+    data.initialFillLevel = bunker.fillLevel or 0
+  end
 
   local initialFill = data.initialFillLevel or (bunker.fillLevel or 0)
-  local currentFill = bunker.fillLevel or initialFill
+  if initialFill <= 0 then
+    return false
+  end
+
   local lossPercent = clamp((1 - (data.sealEfficiency or 0)) * self.config.lossFactor, 0,
     self.config.maxLossPercent)
   local finalSilage = initialFill * (1 - lossPercent)
-  local targetFill = math.max(0, math.min(currentFill, finalSilage))
-  local lossLiters = math.max(0, currentFill - targetFill)
+  data.finalFillLevel = math.max(0, finalSilage)
+  data.silageLoss = initialFill - data.finalFillLevel
+  data.lossApplied = true
 
-  if lossLiters > 0 then
-    if bunker.setFillLevel ~= nil then
-      bunker:setFillLevel(targetFill)
-    else
-      bunker.fillLevel = targetFill
+  -- Visually remove silage loss from the density map so the mound reflects the lost volume.
+  if data.silageLoss > 0 and bunker.isServer then
+    self:removeSilageLossFromDensityMap(bunker, data.silageLoss)
+    if bunker.updateFillLevel then
+      bunker:updateFillLevel()
     end
     if bunker.raiseDirtyFlags and bunker.bunkerSiloDirtyFlag then
       bunker:raiseDirtyFlags(bunker.bunkerSiloDirtyFlag)
     end
   end
 
-  data.silageLoss = lossLiters
-  data.lossApplied = true
   self.asf:log("Fermentation finished")
   self.asf:log("Seal efficiency: %.2f", data.sealEfficiency or 0)
   self.asf:log("Initial fill: %.0f", initialFill)
-  self.asf:log("Final silage: %.0f", targetFill)
-  self.asf:log("Lost silage: %.0f", lossLiters)
+  self.asf:log("Final silage: %.0f", data.finalFillLevel)
+  self.asf:log("Lost silage: %.0f", data.silageLoss)
   return true
 end
 
@@ -332,8 +469,6 @@ function BunkerManager:updateBunker(bunker, dtHours, bales)
   self:updateSealEfficiency(data)
   if bunker.state == BunkerSilo.STATE_CLOSED then
     self:updateOxygen(data, dtHours)
-  else
-    self:applySilageLossIfNeeded(bunker, data)
   end
   if bunker.raiseDirtyFlags and bunker.bunkerSiloDirtyFlag then
     bunker:raiseDirtyFlags(bunker.bunkerSiloDirtyFlag)
@@ -348,13 +483,22 @@ function BunkerManager:onBunkerStateChanged(bunker, newState)
     self:updateBunker(bunker, 0, self:collectBales())
   elseif newState == BunkerSilo.STATE_FERMENTED then
     local data = self:getOrCreateBunkerData(bunker)
-    self:applySilageLossIfNeeded(bunker, data)
+    self:updateBunker(bunker, 0, self:collectBales())
+    self:applySilageLossIfNeeded(bunker, data, nil, nil, nil)
   end
 end
 
 function BunkerManager:onBunkerHourChanged(bunker)
   self:registerBunker(bunker)
   self:updateBunker(bunker, 1, self:collectBales())
+end
+
+function BunkerManager:onBunkerOpenSilo(bunker, px, py, pz)
+  self:registerBunker(bunker)
+  local data = self:getOrCreateBunkerData(bunker)
+  if data == nil then return end
+  self:updateBunker(bunker, 0, self:collectBales())
+  self:applySilageLossIfNeeded(bunker, data, px, py, pz)
 end
 
 function BunkerManager:update(dt)

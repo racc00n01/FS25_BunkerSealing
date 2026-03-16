@@ -18,25 +18,11 @@
 
   <multiplayer supported="false"/>
 
-  <dependencies>
-    <dependency name="FS25_MoistureSystem" minVersion="1.0.0.0"/>
-  </dependencies>
-
   <extraSourceFiles>
     <sourceFile filename="scripts/SealTire.lua"/>
     <sourceFile filename="scripts/bunker/BunkerManager.lua"/>
     <sourceFile filename="scripts/main.lua"/>
   </extraSourceFiles>
-
-  <placeableSpecializations>
-    <specialization name="SealTire" className="SealTire" filename="scripts/SealTire.lua"/>
-  </placeableSpecializations>
-
-  <placeableTypes>
-    <type name="SealTirePlaceable" parent="Placeable">
-      <specialization name="SealTire"/>
-    </type>
-  </placeableTypes>
 
   <l10n filenamePrefix="l10n/l10n"/>
 

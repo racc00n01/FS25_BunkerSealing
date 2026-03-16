@@ -8,8 +8,8 @@ AdvancedBunkers.config = {
   coverScanIntervalMs = 1000,
   requiredWeightPerCell = 1.0,
   oxygenLerpPerHour = 0.25,
-  lossFactor = 2.0,
-  maxLossPercent = 0.8,
+  lossFactor = 1.0,
+  maxLossPercent = 0.5,
   coverWeights = {
     tire = 1,
     baleSmallSquare = 5,
@@ -209,7 +209,49 @@ function AdvancedBunkers.onBunkerHourChanged(self, superFunc)
   g_currentMission.AdvancedBunkers.BunkerManager:onBunkerHourChanged(self)
 end
 
+function AdvancedBunkers.onBunkerOpenSilo(self, superFunc, px, py, pz)
+  if g_currentMission and g_currentMission.AdvancedBunkers and g_currentMission.AdvancedBunkers.BunkerManager then
+    g_currentMission.AdvancedBunkers.BunkerManager:onBunkerOpenSilo(self, px, py, pz)
+  end
+  return superFunc(self, px, py, pz)
+end
+
+function AdvancedBunkers.onBunkerUpdateFillLevel(self, superFunc)
+  superFunc(self)
+  local data = self.asfAdvancedSilage
+  if data and data.lossApplied and data.finalFillLevel ~= nil then
+    self.fillLevel = data.finalFillLevel
+  end
+end
+
+-- Add a simple ASF seal efficiency line to the bunker HUD when the player is close enough.
+function AdvancedBunkers.onBunkerUpdate(self, superFunc, dt)
+  superFunc(self, dt)
+
+  if not g_currentMission or not g_currentMission.AdvancedBunkers or not g_currentMission.AdvancedBunkers.BunkerManager then
+    return
+  end
+
+  -- Only show when the player can interact with the bunker (same condition base game uses for its HUD lines).
+  if not self:getCanInteract(true) then
+    return
+  end
+
+  local manager = g_currentMission.AdvancedBunkers.BunkerManager
+  local data = manager and manager:getOrCreateBunkerData(self) or nil
+  if not data or not data.sealEfficiency then
+    return
+  end
+
+  local sealPct = math.floor((data.sealEfficiency or 0) * 100 + 0.5)
+  g_currentMission:addExtraPrintText(string.format("Seal efficiency: %d%%", sealPct))
+end
+
 BunkerSilo.setState = Utils.overwrittenFunction(BunkerSilo.setState, AdvancedBunkers.onBunkerSetState)
 BunkerSilo.onHourChanged = Utils.overwrittenFunction(BunkerSilo.onHourChanged, AdvancedBunkers.onBunkerHourChanged)
+BunkerSilo.openSilo = Utils.overwrittenFunction(BunkerSilo.openSilo, AdvancedBunkers.onBunkerOpenSilo)
+BunkerSilo.updateFillLevel = Utils.overwrittenFunction(BunkerSilo.updateFillLevel,
+  AdvancedBunkers.onBunkerUpdateFillLevel)
+BunkerSilo.update = Utils.overwrittenFunction(BunkerSilo.update, AdvancedBunkers.onBunkerUpdate)
 
 addModEventListener(AdvancedBunkers)
