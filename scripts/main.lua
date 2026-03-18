@@ -10,6 +10,9 @@ AdvancedBunkerSealing.config = {
   oxygenLerpPerHour = 0.25,
   lossFactor = 1.0,
   maxLossPercent = 0.5,
+  -- Global seal difficulty: scales how effective bale coverage is.
+  -- Hard = 0.8 (more bales needed), Medium = 1.05 (slightly easier), Easy = 1.2 (few bales needed).
+  sealCoverageFactor = 1.05,
   coverWeights = {
     tire = 1,
     baleSmallSquare = 5,
@@ -33,8 +36,6 @@ function AdvancedBunkerSealing:loadMap()
   if g_currentMission and g_currentMission.addDrawable then
     g_currentMission:addDrawable(self)
   end
-
-  self:log("AdvancedBunkerSealing initialized")
 end
 
 function AdvancedBunkerSealing:deleteMap()
@@ -49,7 +50,9 @@ end
 
 -- Function to draw the debug grid of sealed cells onto the bunker silo surface.
 function AdvancedBunkerSealing:draw()
-  self:drawDebugGrid()
+  if self.config and self.config.debug then
+    self:drawDebugGrid()
+  end
 end
 
 -- Debug function to draw the grid of sealed cells onto the bunker silo surface
@@ -147,7 +150,7 @@ function AdvancedBunkerSealing.onBunkerUpdate(self, superFunc, dt)
   end
 
   local sealPct = math.floor((data.sealEfficiency or 0) * 100 + 0.5)
-  g_currentMission:addExtraPrintText(g_i18n:getText("advancedBunkerSealing_sealEfficiency", sealPct))
+  g_currentMission:addExtraPrintText(string.format(g_i18n:getText("advancedBunkerSealing_sealEfficiency"), sealPct))
 end
 
 BunkerSilo.setState = Utils.overwrittenFunction(BunkerSilo.setState, AdvancedBunkerSealing.onBunkerSetState)

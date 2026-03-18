@@ -21,6 +21,7 @@
 
   <extraSourceFiles>
     <sourceFile filename="scripts/bunker/BunkerManager.lua"/>
+    <sourceFile filename="scripts/AdvancedBunkerSealingSettings.lua"/>
     <sourceFile filename="scripts/main.lua"/>
   </extraSourceFiles>
 

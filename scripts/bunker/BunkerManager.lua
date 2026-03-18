@@ -302,11 +302,16 @@ function BunkerManager:updateSealEfficiency(data)
   end
   local coverageFraction = (numCells > 0) and (coveredCount / numCells) or 0
 
+  -- Difficulty scaling: makes it easier/harder for bale coverage to produce high seal efficiency.
+  -- Effective coverage is clamped back into [0..1].
+  local sealCoverageFactor = self.config.sealCoverageFactor or 1.0
+  local effectiveCoverage = clamp(coverageFraction * sealCoverageFactor, 0, 1)
+
   local requiredWeight = math.max(1, numCells * self.config.requiredWeightPerCell)
   local weightBased = clamp(data.coverWeight / requiredWeight, 0, 1)
 
   -- Use the better of coverage or weight: if almost all cells are under a bale, seal is good regardless of weight.
-  data.sealEfficiency = math.max(coverageFraction, weightBased)
+  data.sealEfficiency = math.max(effectiveCoverage, weightBased)
 end
 
 -- Helper function to update the oxygen level
@@ -475,12 +480,6 @@ function BunkerManager:applySilageLossIfNeeded(bunker, data, px, py, pz)
     end
   end
 
-  -- Debug logging
-  self.advancedBunkerSealing:log("Fermentation finished")
-  self.advancedBunkerSealing:log("Seal efficiency: %.2f", data.sealEfficiency or 0)
-  self.advancedBunkerSealing:log("Initial fill: %.0f", initialFill)
-  self.advancedBunkerSealing:log("Final silage: %.0f", data.finalFillLevel)
-  self.advancedBunkerSealing:log("Lost silage: %.0f", data.silageLoss)
   return true
 end
 
