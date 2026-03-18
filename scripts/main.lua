@@ -1,8 +1,8 @@
-AdvancedBunkers = {}
-AdvancedBunkers.dir = g_currentModDirectory
-AdvancedBunkers.modName = g_currentModName
+AdvancedBunkerSealing = {}
+AdvancedBunkerSealing.dir = g_currentModDirectory
+AdvancedBunkerSealing.modName = g_currentModName
 
-AdvancedBunkers.config = {
+AdvancedBunkerSealing.config = {
   debug = true,
   gridCellSize = 0.5,
   coverScanIntervalMs = 1000,
@@ -24,133 +24,36 @@ AdvancedBunkers.config = {
 }
 
 
-function AdvancedBunkers:loadMap()
-  g_currentMission.AdvancedBunkers = self
+function AdvancedBunkerSealing:loadMap()
+  g_currentMission.AdvancedBunkerSealing = self
 
   self.BunkerManager = BunkerManager:new()
-  self.config = AdvancedBunkers.config
+  self.config = AdvancedBunkerSealing.config
 
   if g_currentMission and g_currentMission.addDrawable then
     g_currentMission:addDrawable(self)
   end
 
-  addConsoleCommand("gsASFPlaceSealTire", "Place seal tire at current player position (stand on closed bunker foil)",
-    "consoleCommandPlaceSealTire", self)
-  self:log("ASF initialized")
+  self:log("AdvancedBunkerSealing initialized")
 end
 
-function AdvancedBunkers:deleteMap()
+function AdvancedBunkerSealing:deleteMap()
   if g_currentMission and g_currentMission.removeDrawable then
     g_currentMission:removeDrawable(self)
   end
-  removeConsoleCommand("gsASFPlaceSealTire")
 end
 
-function AdvancedBunkers:update(dt)
+function AdvancedBunkerSealing:update(dt)
   self.BunkerManager:update(dt)
 end
 
-function AdvancedBunkers:draw()
+-- Function to draw the debug grid of sealed cells onto the bunker silo surface.
+function AdvancedBunkerSealing:draw()
   self:drawDebugGrid()
 end
 
-function AdvancedBunkers:placeSealTire(bunker, worldX, worldZ, player)
-  if bunker == nil then return false end
-  if not bunker.isServer then return false end
-  local data = self.BunkerManager:getOrCreateBunkerData(bunker)
-  self.BunkerManager:ensureSealGrid(bunker, data)
-  if data == nil or data.seal == nil or data.seal.cellPositions == nil then return false end
-
-  local bestIdx, bestDist2 = nil, math.huge
-  for i, pos in ipairs(data.seal.cellPositions) do
-    local dx = pos.x - worldX
-    local dz = pos.z - worldZ
-    local d2 = dx * dx + dz * dz
-    if d2 < bestDist2 then
-      bestDist2 = d2
-      bestIdx = i
-    end
-  end
-
-  local placeRadius = 1.5
-  if bestIdx == nil or bestDist2 > placeRadius * placeRadius then return false end
-
-  if not data.seal.cells[bestIdx] then
-    data.seal.cells[bestIdx] = true
-    data.seal.sealedCount = (data.seal.sealedCount or 0) + 1
-    if bunker.raiseDirtyFlags and bunker.bunkerSiloDirtyFlag then
-      bunker:raiseDirtyFlags(bunker.bunkerSiloDirtyFlag)
-    end
-    return true
-  end
-  return false
-end
-
-function AdvancedBunkers:getSealedFraction(bunker)
-  local data = self.BunkerManager:getOrCreateBunkerData(bunker)
-  if data == nil or data.seal == nil or data.seal.cells == nil then return 0 end
-  local count = 0
-  for _, v in ipairs(data.seal.cells) do
-    if v then count = count + 1 end
-  end
-  return count / math.max(1, #data.seal.cells)
-end
-
-function AdvancedBunkers:log(fmt, ...)
-  if not self.config.debug then
-    return
-  end
-  if select("#", ...) > 0 then
-    print(string.format("[AdvancedBunkers] " .. fmt, ...))
-  else
-    print("[AdvancedBunkers] " .. tostring(fmt))
-  end
-end
-
-function AdvancedBunkers.consoleCommandPlaceSealTire(self)
-  local ok, err = pcall(function()
-    if g_currentMission == nil or g_currentMission.placeableSystem == nil then
-      print("[AdvancedBunkers] No mission or placeable system.")
-      return
-    end
-    local player = g_localPlayer
-    if player == nil then
-      print("[AdvancedBunkers] No local player.")
-      return
-    end
-    local px, py, pz = player:getPosition()
-    if px == nil or pz == nil then
-      print("[AdvancedBunkers] Could not get player position.")
-      return
-    end
-
-    local placeables = g_currentMission.placeableSystem:getBunkerSilos()
-    for _, placeable in ipairs(placeables or {}) do
-      local bunkers = nil
-      if placeable.spec_multiBunkerSilo and placeable.spec_multiBunkerSilo.bunkerSilos then
-        bunkers = placeable.spec_multiBunkerSilo.bunkerSilos
-      elseif placeable.spec_bunkerSilo and placeable.spec_bunkerSilo.bunkerSilo then
-        bunkers = { placeable.spec_bunkerSilo.bunkerSilo }
-      end
-      if bunkers then
-        for _, bunker in ipairs(bunkers) do
-          if bunker and self:placeSealTire(bunker, px, pz, player) then
-            local frac = self:getSealedFraction(bunker)
-            print(string.format("[AdvancedBunkers] Sealed cell at (%.1f, %.1f). Grid: %.0f%% sealed.", px, pz, frac * 100))
-            return
-          end
-        end
-      end
-    end
-    print("[AdvancedBunkers] No cell sealed. Stand on the seal foil within 1.5 m of a grid cell and try again.")
-  end)
-  if not ok and err then
-    print("[AdvancedBunkers] Error: " .. tostring(err))
-  end
-end
-
 -- Debug function to draw the grid of sealed cells onto the bunker silo surface
-function AdvancedBunkers:drawDebugGrid()
+function AdvancedBunkerSealing:drawDebugGrid()
   if g_currentMission == nil or g_currentMission.placeableSystem == nil or g_terrainNode == nil then
     return
   end
@@ -199,24 +102,24 @@ function AdvancedBunkers:drawDebugGrid()
   end
 end
 
-function AdvancedBunkers.onBunkerSetState(self, superFunc, state, showNotification)
+function AdvancedBunkerSealing.onBunkerSetState(self, superFunc, state, showNotification)
   superFunc(self, state, showNotification)
-  g_currentMission.AdvancedBunkers.BunkerManager:onBunkerStateChanged(self, state)
+  g_currentMission.AdvancedBunkerSealing.BunkerManager:onBunkerStateChanged(self, state)
 end
 
-function AdvancedBunkers.onBunkerHourChanged(self, superFunc)
+function AdvancedBunkerSealing.onBunkerHourChanged(self, superFunc)
   superFunc(self)
-  g_currentMission.AdvancedBunkers.BunkerManager:onBunkerHourChanged(self)
+  g_currentMission.AdvancedBunkerSealing.BunkerManager:onBunkerHourChanged(self)
 end
 
-function AdvancedBunkers.onBunkerOpenSilo(self, superFunc, px, py, pz)
-  if g_currentMission and g_currentMission.AdvancedBunkers and g_currentMission.AdvancedBunkers.BunkerManager then
-    g_currentMission.AdvancedBunkers.BunkerManager:onBunkerOpenSilo(self, px, py, pz)
+function AdvancedBunkerSealing.onBunkerOpenSilo(self, superFunc, px, py, pz)
+  if g_currentMission and g_currentMission.AdvancedBunkerSealing and g_currentMission.AdvancedBunkerSealing.BunkerManager then
+    g_currentMission.AdvancedBunkerSealing.BunkerManager:onBunkerOpenSilo(self, px, py, pz)
   end
   return superFunc(self, px, py, pz)
 end
 
-function AdvancedBunkers.onBunkerUpdateFillLevel(self, superFunc)
+function AdvancedBunkerSealing.onBunkerUpdateFillLevel(self, superFunc)
   superFunc(self)
   local data = self.asfAdvancedSilage
   if data and data.lossApplied and data.finalFillLevel ~= nil then
@@ -224,34 +127,34 @@ function AdvancedBunkers.onBunkerUpdateFillLevel(self, superFunc)
   end
 end
 
--- Add a simple ASF seal efficiency line to the bunker HUD when the player is close enough.
-function AdvancedBunkers.onBunkerUpdate(self, superFunc, dt)
+-- Add a simple AdvancedBunkerSealing seal efficiency line to the bunker HUD when the player is close enough.
+function AdvancedBunkerSealing.onBunkerUpdate(self, superFunc, dt)
   superFunc(self, dt)
 
-  if not g_currentMission or not g_currentMission.AdvancedBunkers or not g_currentMission.AdvancedBunkers.BunkerManager then
+  if not g_currentMission or not g_currentMission.AdvancedBunkerSealing or not g_currentMission.AdvancedBunkerSealing.BunkerManager then
     return
   end
 
-  -- Only show when the player can interact with the bunker (same condition base game uses for its HUD lines).
+  -- Only show when the player can interact with the bunker.
   if not self:getCanInteract(true) then
     return
   end
 
-  local manager = g_currentMission.AdvancedBunkers.BunkerManager
-  local data = manager and manager:getOrCreateBunkerData(self) or nil
+  local manager = g_currentMission.AdvancedBunkerSealing.BunkerManager
+  local data = manager:getOrCreateBunkerData(self) or nil
   if not data or not data.sealEfficiency then
     return
   end
 
   local sealPct = math.floor((data.sealEfficiency or 0) * 100 + 0.5)
-  g_currentMission:addExtraPrintText(string.format("Seal efficiency: %d%%", sealPct))
+  g_currentMission:addExtraPrintText(g_i18n:getText("advancedBunkerSealing_sealEfficiency", sealPct))
 end
 
-BunkerSilo.setState = Utils.overwrittenFunction(BunkerSilo.setState, AdvancedBunkers.onBunkerSetState)
-BunkerSilo.onHourChanged = Utils.overwrittenFunction(BunkerSilo.onHourChanged, AdvancedBunkers.onBunkerHourChanged)
-BunkerSilo.openSilo = Utils.overwrittenFunction(BunkerSilo.openSilo, AdvancedBunkers.onBunkerOpenSilo)
+BunkerSilo.setState = Utils.overwrittenFunction(BunkerSilo.setState, AdvancedBunkerSealing.onBunkerSetState)
+BunkerSilo.onHourChanged = Utils.overwrittenFunction(BunkerSilo.onHourChanged, AdvancedBunkerSealing.onBunkerHourChanged)
+BunkerSilo.openSilo = Utils.overwrittenFunction(BunkerSilo.openSilo, AdvancedBunkerSealing.onBunkerOpenSilo)
 BunkerSilo.updateFillLevel = Utils.overwrittenFunction(BunkerSilo.updateFillLevel,
-  AdvancedBunkers.onBunkerUpdateFillLevel)
-BunkerSilo.update = Utils.overwrittenFunction(BunkerSilo.update, AdvancedBunkers.onBunkerUpdate)
+  AdvancedBunkerSealing.onBunkerUpdateFillLevel)
+BunkerSilo.update = Utils.overwrittenFunction(BunkerSilo.update, AdvancedBunkerSealing.onBunkerUpdate)
 
-addModEventListener(AdvancedBunkers)
+addModEventListener(AdvancedBunkerSealing)

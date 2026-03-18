@@ -9,8 +9,8 @@ end
 
 function BunkerManager.new()
   local self = setmetatable({}, BunkerManager_mt)
-  self.asf = g_currentMission.AdvancedBunkers
-  self.config = g_currentMission.AdvancedBunkers.config
+  self.advancedBunkerSealing = g_currentMission.AdvancedBunkerSealing
+  self.config = g_currentMission.AdvancedBunkerSealing.config
   self.tracked = {}
   self.scanTimerMs = 0
 
@@ -33,6 +33,7 @@ function BunkerManager:getSurfaceYAtWorldXZ(x, z, offsetAbove)
   return offsetAbove
 end
 
+-- Helper function to get the world position of an object
 function BunkerManager:getObjectWorldPosition(object)
   if object == nil then return nil, nil, nil end
   if object.nodeId ~= nil and object.nodeId ~= 0 then
@@ -44,6 +45,7 @@ function BunkerManager:getObjectWorldPosition(object)
   return nil, nil, nil
 end
 
+-- Helper function to check if a point is inside a bunker area
 function BunkerManager:isPointInBunkerArea(area, x, z)
   if area == nil then return false end
   local dhx = area.dhx or (area.hx - area.sx)
@@ -60,12 +62,13 @@ function BunkerManager:isPointInBunkerArea(area, x, z)
   return tLen >= 0 and tLen <= 1 and tWid >= 0 and tWid <= 1
 end
 
+-- Helper function to get or create custom bunker data
 function BunkerManager:getOrCreateBunkerData(bunker)
   if bunker == nil then return nil end
-  local data = bunker.asfAdvancedSilage
+  local data = bunker.advancedBunkerSealing
   if data == nil then
     data = {}
-    bunker.asfAdvancedSilage = data
+    bunker.advancedBunkerSealing = data
   end
 
   data.initialFillLevel = data.initialFillLevel or 0
@@ -89,6 +92,7 @@ function BunkerManager:getOrCreateBunkerData(bunker)
   return data
 end
 
+-- Helper function to reset bunker data on close
 function BunkerManager:resetBunkerDataOnClose(bunker)
   local data = self:getOrCreateBunkerData(bunker)
   if data == nil then return nil end
@@ -112,6 +116,7 @@ function BunkerManager:resetBunkerDataOnClose(bunker)
   return data
 end
 
+-- Helper function to ensure the seal grid is created
 function BunkerManager:ensureSealGrid(bunker, data)
   if bunker == nil or data == nil then return end
   local area = bunker.bunkerSiloArea
@@ -151,12 +156,14 @@ function BunkerManager:ensureSealGrid(bunker, data)
   end
 end
 
+-- Helper function to register a bunker that is being tracked
 function BunkerManager:registerBunker(bunker)
   if bunker ~= nil then
     self.tracked[bunker] = true
   end
 end
 
+-- Helper function to register all existing bunkers
 function BunkerManager:registerExistingBunkers()
   if g_currentMission == nil or g_currentMission.placeableSystem == nil then return end
   local placeables = g_currentMission.placeableSystem:getBunkerSilos()
@@ -177,6 +184,7 @@ function BunkerManager:registerExistingBunkers()
   end
 end
 
+-- Helper function to get the weight data of a bale
 function BunkerManager:getBaleWeightData(bale)
   local cfg = self.config.coverWeights
   local isRound = bale.isRoundbale == true or bale.isRoundBale == true
@@ -198,6 +206,7 @@ function BunkerManager:getBaleWeightData(bale)
   return weight, radius, halfHeight
 end
 
+-- Helper function to check if a bale is mounted or attached
 function BunkerManager:isBaleMountedOrAttached(bale)
   -- Native Bale objects expose dynamic mount type when carried/loaded.
   if bale.dynamicMountType ~= nil and MountableObject ~= nil then
@@ -212,6 +221,7 @@ function BunkerManager:isBaleMountedOrAttached(bale)
   return false
 end
 
+-- Helper function to collect all bales in the mission
 function BunkerManager:collectBales()
   local bales = {}
   if g_currentMission == nil then return bales end
@@ -238,6 +248,7 @@ function BunkerManager:collectBales()
   return bales
 end
 
+-- Helper function to scan the bunker cover and update the seal efficiency
 function BunkerManager:scanBunkerCover(bunker, data, bales)
   self:ensureSealGrid(bunker, data)
   local positions = data.seal.cellPositions or {}
@@ -281,6 +292,7 @@ function BunkerManager:scanBunkerCover(bunker, data, bales)
   data.coverWeight = tireWeight + baleWeight
 end
 
+-- Helper function to update the seal efficiency
 function BunkerManager:updateSealEfficiency(data)
   local coveredByBale = data.seal.baleCoveredCells or {}
   local numCells = #data.seal.cellPositions
@@ -297,6 +309,7 @@ function BunkerManager:updateSealEfficiency(data)
   data.sealEfficiency = math.max(coverageFraction, weightBased)
 end
 
+-- Helper function to update the oxygen level
 function BunkerManager:updateOxygen(data, dtHours)
   dtHours = dtHours or 1
   local targetOxygen = 1 - (data.sealEfficiency or 0)
@@ -312,7 +325,7 @@ function BunkerManager:removeSilageLossFromDensityMap(bunker, totalLossLiters)
   if not g_densityMapHeightManager or not g_densityMapHeightManager:getIsValid() then return 0 end
   if not bunker or totalLossLiters == nil or totalLossLiters <= 0 then return 0 end
 
-  -- Use inner area for consistency with the game's fill-level calculations.
+  -- Use inner area for consistent fill-level calculations.
   local area = bunker.bunkerSiloArea and bunker.bunkerSiloArea.inner or bunker.bunkerSiloArea
   if area == nil then return 0 end
 
@@ -325,7 +338,7 @@ function BunkerManager:removeSilageLossFromDensityMap(bunker, totalLossLiters)
   local hx = (area.dhx_norm ~= nil and area.dhx_norm) or (dhx / hl)
   local hz = (area.dhz_norm ~= nil and area.dhz_norm) or (dhz / hl)
 
-  -- Collect strips along bunker length and measure their volume.
+  -- Collect strips along bunker length and measure their fill volumes.
   local step = 0.5
   local strips = {}
   local totalLitersInBunker = 0
@@ -418,6 +431,8 @@ function BunkerManager:removeSilageLossFromDensityMap(bunker, totalLossLiters)
   return removedTotal
 end
 
+-- Function to apply silage loss if needed.
+-- Silage loss is calculated by calculating the lossPercentage (done by the config settings), and then multiply the initialFillLevel of the bunker by the lossPercentage.
 function BunkerManager:applySilageLossIfNeeded(bunker, data, px, py, pz)
   if data.lossApplied then return false end
   if bunker.state ~= BunkerSilo.STATE_FERMENTED and bunker.state ~= BunkerSilo.STATE_DRAIN then return false end
@@ -435,32 +450,41 @@ function BunkerManager:applySilageLossIfNeeded(bunker, data, px, py, pz)
     return false
   end
 
+  -- Calculate what the loss percentage should be, based on the sealEfficiency and the lossFactor and maxLossPercent settings.
   local lossPercent = clamp((1 - (data.sealEfficiency or 0)) * self.config.lossFactor, 0,
     self.config.maxLossPercent)
+
+  -- Calculate the final silage level after applying the loss percentage to the initial fill level, this will create the final amount of silage inside the bunker, when completly fermented.
   local finalSilage = initialFill * (1 - lossPercent)
+
+  -- Set the different calculations to the data of the bunker.
   data.finalFillLevel = math.max(0, finalSilage)
+
+  -- Save the silage that is lost in the data, so we can later use it to remove silage from the density map and showcase a message to the player.
   data.silageLoss = initialFill - data.finalFillLevel
-  data.lossApplied = true
+  data.lossApplied = true -- Set the lossApplied flag to true, so we know that the loss has been applied and we don't need to apply it again.
 
   -- Visually remove silage loss from the density map so the mound reflects the lost volume.
-  if data.silageLoss > 0 and bunker.isServer then
-    self:removeSilageLossFromDensityMap(bunker, data.silageLoss)
+  if data.silageLoss > 0 and data.lossApplied == true and bunker.isServer then
+    self:removeSilageLossFromDensityMap(bunker, data.silageLoss) -- Call the function to remove the silage from the density map.
     if bunker.updateFillLevel then
-      bunker:updateFillLevel()
+      bunker:updateFillLevel()                                   -- Set the new fill level of the bunker.
     end
     if bunker.raiseDirtyFlags and bunker.bunkerSiloDirtyFlag then
-      bunker:raiseDirtyFlags(bunker.bunkerSiloDirtyFlag)
+      bunker:raiseDirtyFlags(bunker.bunkerSiloDirtyFlag) -- Raise the dirty flags of the bunker.
     end
   end
 
-  self.asf:log("Fermentation finished")
-  self.asf:log("Seal efficiency: %.2f", data.sealEfficiency or 0)
-  self.asf:log("Initial fill: %.0f", initialFill)
-  self.asf:log("Final silage: %.0f", data.finalFillLevel)
-  self.asf:log("Lost silage: %.0f", data.silageLoss)
+  -- Debug logging
+  self.advancedBunkerSealing:log("Fermentation finished")
+  self.advancedBunkerSealing:log("Seal efficiency: %.2f", data.sealEfficiency or 0)
+  self.advancedBunkerSealing:log("Initial fill: %.0f", initialFill)
+  self.advancedBunkerSealing:log("Final silage: %.0f", data.finalFillLevel)
+  self.advancedBunkerSealing:log("Lost silage: %.0f", data.silageLoss)
   return true
 end
 
+-- Function to update the bunker data.
 function BunkerManager:updateBunker(bunker, dtHours, bales)
   if bunker == nil then return end
   if bunker.state ~= BunkerSilo.STATE_CLOSED and bunker.state ~= BunkerSilo.STATE_FERMENTED then return end
@@ -493,6 +517,7 @@ function BunkerManager:onBunkerHourChanged(bunker)
   self:updateBunker(bunker, 1, self:collectBales())
 end
 
+-- When the bunker is opened, update the bunker data and apply the silage loss if needed.
 function BunkerManager:onBunkerOpenSilo(bunker, px, py, pz)
   self:registerBunker(bunker)
   local data = self:getOrCreateBunkerData(bunker)
