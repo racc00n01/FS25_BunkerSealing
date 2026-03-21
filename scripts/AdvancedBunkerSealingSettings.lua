@@ -21,7 +21,7 @@ do
 end
 
 AdvancedBunkerSealingSettings.current = {
-  debug = true,
+  debug = false,
   lossFactor = 1.0,
   maxLossPercent = 0.5,
   -- Hard = 0.8, Medium = 1.05, Easy = 1.2

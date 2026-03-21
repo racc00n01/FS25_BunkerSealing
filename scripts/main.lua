@@ -3,7 +3,7 @@ AdvancedBunkerSealing.dir = g_currentModDirectory
 AdvancedBunkerSealing.modName = g_currentModName
 
 AdvancedBunkerSealing.config = {
-  debug = true,
+  debug = false,
   gridCellSize = 0.5,
   coverScanIntervalMs = 1000,
   requiredWeightPerCell = 1.0,

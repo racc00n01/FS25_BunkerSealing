@@ -7,7 +7,7 @@
   <iconFilename>icon_advancedBunkerSealing.dds</iconFilename>
 
   <title>
-    <en>Advanced Bunker Sealing</en>
+    <en>Bunker Sealing</en>
   </title>
 
   <description>
@@ -15,7 +15,7 @@
 ]]>    </en>
   </description>
 
-  <multiplayer supported="false"/>
+  <multiplayer supported="true"/>
 
   <extraSourceFiles>
     <sourceFile filename="scripts/bunker/BunkerManager.lua"/>
