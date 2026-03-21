@@ -6,7 +6,7 @@
 
   <iconFilename>icon_customContracts.dds</iconFilename>
 
-  <multiplayer supported="true" />
+  <multiplayer supported="false" />
 
   <title>
     <en>Advanced Silage Fementation</en>
@@ -15,8 +15,6 @@
   <description>
     <en>Proof of concept: bunker metadata + silage metadata + barn productivity boost when feeding silage.</en>
   </description>
-
-  <multiplayer supported="false"/>
 
   <dependencies>
     <dependency name="FS25_MoistureSystem" minVersion="1.0.0.0"/>
