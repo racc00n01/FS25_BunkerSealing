@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<l10n>
+  <texts>
+    <text name="advancedBunkerSealing_sealEfficiency" text="Seal efficiency: %d%%"/>
+
+    <text name="advancedBunkerSealing_settings_title" text="Advanced Bunker Sealing"/>
+    <text name="advancedBunkerSealing_debug_title" text="Debug grid"/>
+    <text name="advancedBunkerSealing_debug_tooltip" text="Draw the sealed cell grid on bunker surface."/>
+
+    <text name="advancedBunkerSealing_lossFactor_title" text="Silage loss factor"/>
+    <text name="advancedBunkerSealing_lossFactor_tooltip" text="Scales how strong silage loss becomes for poor sealing."/>
+
+    <text name="advancedBunkerSealing_maxLossPercent_title" text="Max silage loss"/>
+    <text name="advancedBunkerSealing_maxLossPercent_tooltip" text="Maximum silage loss capped from 0% up to 50%."/>
+
+    <text name="advancedBunkerSealing_sealDifficulty_title" text="Seal difficulty"/>
+    <text name="advancedBunkerSealing_sealDifficulty_tooltip" text="Easy makes bale coverage count more, so you need fewer bales for good sealing."/>
+  </texts>
+</l10n>
