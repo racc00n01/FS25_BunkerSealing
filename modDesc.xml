@@ -9,21 +9,25 @@
   <multiplayer supported="true" />
 
   <title>
-    <en>Advanced Silage Fementation</en>
+    <en>Advanced Bunker Sealing</en>
   </title>
 
   <description>
-    <en>Proof of concept: bunker metadata + silage metadata + barn productivity boost when feeding silage.</en>
+    <en><![CDATA[Adds a realistic bunker sealing system to silage production. Place bales on top of your bunker to improve seal quality and reduce silage losses. Poor sealing will result in lower yield, making proper coverage essential.
+]]>    </en>
   </description>
 
-  <multiplayer supported="false"/>
-
-  <dependencies>
-    <dependency name="FS25_MoistureSystem" minVersion="1.0.0.0"/>
-  </dependencies>
+  <multiplayer supported="true"/>
 
   <extraSourceFiles>
+    <sourceFile filename="scripts/bunker/BunkerManager.lua"/>
+    <sourceFile filename="scripts/AdvancedBunkerSealingSettings.lua"/>
     <sourceFile filename="scripts/main.lua"/>
-    <sourceFile filename="scripts/HUD/BunkerSiloHud.lua"/>
   </extraSourceFiles>
+
+  <l10n filenamePrefix="l10n/l10n"/>
+
+  <storeItems>
+    <storeItem xmlFilename="objects/tire.xml"/>
+  </storeItems>
 </modDesc>
