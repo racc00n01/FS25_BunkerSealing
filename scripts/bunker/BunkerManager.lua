@@ -88,6 +88,7 @@ function BunkerManager:getOrCreateBunkerData(bunker)
   data.seal.cellCountLength = data.seal.cellCountLength or 0
   data.seal.cellCountWidth = data.seal.cellCountWidth or 0
   data.seal.sealedCount = data.seal.sealedCount or 0
+  data.seal.cellHasMaterial = data.seal.cellHasMaterial or {}
 
   return data
 end
@@ -112,6 +113,7 @@ function BunkerManager:resetBunkerDataOnClose(bunker)
   data.seal.cellCountLength = 0
   data.seal.cellCountWidth = 0
   data.seal.sealedCount = 0
+  data.seal.cellHasMaterial = {}
 
   return data
 end
@@ -153,6 +155,61 @@ function BunkerManager:ensureSealGrid(bunker, data)
       local wy = self:getSurfaceYAtWorldXZ(wx, wz)
       data.seal.cellPositions[idx] = { x = wx, y = wy, z = wz }
     end
+  end
+end
+
+-- Mark grid cells that actually contain fermenting/output fill (chaff/grass/silage).
+-- Empty floor cells do not require bale coverage.
+function BunkerManager:updateCellMaterialMask(bunker, data)
+  if not DensityMapHeightUtil or not DensityMapHeightUtil.getFillLevelAtArea then
+    return
+  end
+  if bunker == nil or data == nil or data.seal == nil then
+    return
+  end
+  local area = bunker.bunkerSiloArea
+  local positions = data.seal.cellPositions
+  if area == nil or positions == nil or #positions == 0 then
+    return
+  end
+
+  local cellHasMaterial = data.seal.cellHasMaterial or {}
+  data.seal.cellHasMaterial = cellHasMaterial
+
+  local dhx = area.dhx or (area.hx - area.sx)
+  local dhz = area.dhz or (area.hz - area.sz)
+  local dwx = area.dwx or (area.wx - area.sx)
+  local dwz = area.dwz or (area.wz - area.sz)
+  local countL = math.max(1, data.seal.cellCountLength or 1)
+  local countW = math.max(1, data.seal.cellCountWidth or 1)
+  local ax = dhx / countL
+  local az = dhz / countL
+  local bx = dwx / countW
+  local bz = dwz / countW
+  local minL = self.config.minCellFillLiters or 1.0
+  local fillTypes = { bunker.fermentingFillType, bunker.outputFillType }
+
+  for idx = 1, #positions do
+    local pos = positions[idx]
+    local wx, wz = pos.x, pos.z
+    -- Small parallelogram around cell center (same orientation as bunker grid).
+    local fx = ax * 0.35
+    local fz = az * 0.35
+    local gx = bx * 0.35
+    local gz = bz * 0.35
+    local x0 = wx - fx - gx
+    local z0 = wz - fz - gz
+    local x1 = wx + fx - gx
+    local z1 = wz + fz - gz
+    local x2 = wx - fx + gx
+    local z2 = wz - fz + gz
+    local liters = 0
+    for _, ft in ipairs(fillTypes) do
+      if ft ~= nil then
+        liters = liters + DensityMapHeightUtil.getFillLevelAtArea(ft, x0, z0, x1, z1, x2, z2)
+      end
+    end
+    cellHasMaterial[idx] = (liters >= minL)
   end
 end
 
@@ -251,6 +308,7 @@ end
 -- Helper function to scan the bunker cover and update the seal efficiency
 function BunkerManager:scanBunkerCover(bunker, data, bales)
   self:ensureSealGrid(bunker, data)
+  self:updateCellMaterialMask(bunker, data)
   local positions = data.seal.cellPositions or {}
   local coveredByBale = data.seal.baleCoveredCells or {}
   data.seal.baleCoveredCells = coveredByBale
@@ -295,19 +353,47 @@ end
 -- Helper function to update the seal efficiency
 function BunkerManager:updateSealEfficiency(data)
   local coveredByBale = data.seal.baleCoveredCells or {}
-  local numCells = #data.seal.cellPositions
-  local coveredCount = 0
-  for i = 1, numCells do
-    if coveredByBale[i] then coveredCount = coveredCount + 1 end
+  local cellHasMaterial = data.seal.cellHasMaterial or {}
+  local bufferCells = self.config.sealMaterialBufferCells or 2
+
+  local numMaterialCells = 0
+  local coveredMaterialCount = 0
+  for i = 1, #data.seal.cellPositions do
+    if cellHasMaterial[i] then
+      numMaterialCells = numMaterialCells + 1
+      if coveredByBale[i] then
+        coveredMaterialCount = coveredMaterialCount + 1
+      end
+    end
   end
-  local coverageFraction = (numCells > 0) and (coveredCount / numCells) or 0
+
+  -- Empty cells (no chaff/grass/silage under the point) are ignored.
+  -- Buffer: among material cells, up to `bufferCells` may stay uncovered and still count as full bale coverage.
+  local coverageFraction = 0
+  if numMaterialCells == 0 then
+    coverageFraction = 1
+  elseif numMaterialCells <= bufferCells then
+    coverageFraction = coveredMaterialCount / numMaterialCells
+  else
+    local needCovered = numMaterialCells - bufferCells
+    if coveredMaterialCount >= needCovered then
+      coverageFraction = 1
+    else
+      coverageFraction = coveredMaterialCount / needCovered
+    end
+  end
 
   -- Difficulty scaling: makes it easier/harder for bale coverage to produce high seal efficiency.
   -- Effective coverage is clamped back into [0..1].
   local sealCoverageFactor = self.config.sealCoverageFactor or 1.0
   local effectiveCoverage = clamp(coverageFraction * sealCoverageFactor, 0, 1)
 
-  local requiredWeight = math.max(1, numCells * self.config.requiredWeightPerCell)
+  -- Weight requirement scales with material cells only; at least 2 cells worth when any material exists.
+  local requiredWeight = 1
+  if numMaterialCells > 0 then
+    local cellsForWeight = math.max(bufferCells, numMaterialCells)
+    requiredWeight = math.max(1, cellsForWeight * self.config.requiredWeightPerCell)
+  end
   local weightBased = clamp(data.coverWeight / requiredWeight, 0, 1)
 
   -- Use the better of coverage or weight: if almost all cells are under a bale, seal is good regardless of weight.
@@ -391,46 +477,46 @@ function BunkerManager:removeSilageLossFromDensityMap(bunker, totalLossLiters)
   -- Second pass: remove proportionally per strip using negative tip operations.
   local removedTotal = 0
   for _, strip in ipairs(strips) do
-    if strip.stripLiters <= 0 then continue end
+    if strip.stripLiters <= 0 then
+      -- skip
+    else
+      local stripLoss = totalLossLiters * (strip.stripLiters / totalLitersInBunker)
+      if stripLoss > 0 then
+        local sMid = (strip.s1 + strip.s2) * 0.5
+        local sx = area.sx + sMid * hx
+        local sz = area.sz + sMid * hz
+        local ex = area.wx + sMid * hx
+        local ez = area.wz + sMid * hz
+        local sy = self:getSurfaceYAtWorldXZ(sx, sz)
+        local ey = self:getSurfaceYAtWorldXZ(ex, ez)
 
-    local stripLoss = totalLossLiters * (strip.stripLiters / totalLitersInBunker)
-    if stripLoss <= 0 then continue end
+        local radius = 2.0
+        local innerRadius = 0
 
-    local sMid = (strip.s1 + strip.s2) * 0.5
-    local sx = area.sx + sMid * hx
-    local sz = area.sz + sMid * hz
-    local ex = area.wx + sMid * hx
-    local ez = area.wz + sMid * hz
-    local sy = self:getSurfaceYAtWorldXZ(sx, sz)
-    local ey = self:getSurfaceYAtWorldXZ(ex, ez)
-
-    local radius = 2.0
-    local innerRadius = 0
-
-    for fillType, litersInStripType in pairs(strip.typeVolumes) do
-      if litersInStripType > 0 then
-        local typeLoss = stripLoss * (litersInStripType / strip.stripLiters)
-        if typeLoss > 0 then
-          local delta = DensityMapHeightUtil.tipToGroundAroundLine(
-            nil,
-            -typeLoss,
-            fillType,
-            sx, sy, sz,
-            ex, ey, ez,
-            innerRadius,
-            radius,
-            nil,   -- lineOffset
-            false, -- limitToLineHeight
-            nil    -- occlusionAreas
-          )
-          if delta < 0 then
-            removedTotal = removedTotal + (-delta)
+        for fillType, litersInStripType in pairs(strip.typeVolumes) do
+          if litersInStripType > 0 then
+            local typeLoss = stripLoss * (litersInStripType / strip.stripLiters)
+            if typeLoss > 0 then
+              local delta = DensityMapHeightUtil.tipToGroundAroundLine(
+                nil,
+                -typeLoss,
+                fillType,
+                sx, sy, sz,
+                ex, ey, ez,
+                innerRadius,
+                radius,
+                nil, -- lineOffset
+                false, -- limitToLineHeight
+                nil -- occlusionAreas
+              )
+              if delta < 0 then
+                removedTotal = removedTotal + (-delta)
+              end
+            end
           end
         end
       end
     end
-
-    continue
   end
 
   return removedTotal

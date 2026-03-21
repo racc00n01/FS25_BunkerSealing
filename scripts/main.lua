@@ -23,7 +23,11 @@ AdvancedBunkerSealing.config = {
     min = -0.15,
     max = 0.2
   },
-  debugPointSize = 0.5
+  debugPointSize = 0.5,
+  -- Minimum liters in a grid cell to count as "has crop" (needs sealing).
+  minCellFillLiters = 1.0,
+  -- Among cells that have material, this many may stay uncovered and still count as full coverage.
+  sealMaterialBufferCells = 3
 }
 
 
@@ -68,6 +72,7 @@ function AdvancedBunkerSealing:drawDebugGrid()
       local positions = data.seal.cellPositions
       local cells = data.seal.cells
       local baleCovered = data.seal.baleCoveredCells or {}
+      local cellHasMaterial = data.seal.cellHasMaterial or {}
       local W = data.seal.cellCountWidth or 1
       local L = data.seal.cellCountLength or #positions
       for idx = 1, #positions do
@@ -75,11 +80,17 @@ function AdvancedBunkerSealing:drawDebugGrid()
         local x, z = pos.x, pos.z
         if x == nil or z == nil then break end
         local y = self.BunkerManager:getSurfaceYAtWorldXZ(x, z)
-        local sealed = (cells and cells[idx]) or baleCovered[idx]
-        if sealed then
-          drawDebugPoint(x, y, z, 0, 1, 0, self.config.debugPointSize)
+        local hasMat = cellHasMaterial[idx] == true
+        if not hasMat then
+          -- No crop under this grid point: not part of seal requirement.
+          drawDebugPoint(x, y, z, 0.35, 0.35, 0.35, self.config.debugPointSize * 0.7)
         else
-          drawDebugPoint(x, y, z, 1, 0.3, 0, self.config.debugPointSize)
+          local sealed = (cells and cells[idx]) or baleCovered[idx]
+          if sealed then
+            drawDebugPoint(x, y, z, 0, 1, 0, self.config.debugPointSize)
+          else
+            drawDebugPoint(x, y, z, 1, 0.3, 0, self.config.debugPointSize)
+          end
         end
 
         local col = (idx - 1) % W
