@@ -305,6 +305,23 @@ function BunkerManager:collectBales()
   return bales
 end
 
+-- Store-bought seal tire (shop Objects — objects/tireHuge.xml + objects/tireHugeUnit.xml); matched by config filename.
+function BunkerManager:isSealTireVehicle(vehicle)
+  if vehicle == nil or vehicle.isDeleted then
+    return false
+  end
+  -- Do not count while the player is carrying the tire in hand.
+  if vehicle.getIsBeingPickedUp ~= nil and vehicle:getIsBeingPickedUp() then
+    return false
+  end
+  local fn = vehicle.configFileName or vehicle.xmlFilename
+  if type(fn) ~= "string" or fn == "" then
+    return false
+  end
+  fn = string.lower(fn)
+  return string.find(fn, "tirehuge", 1, true) ~= nil
+end
+
 -- Helper function to scan the bunker cover and update the seal efficiency
 function BunkerManager:scanBunkerCover(bunker, data, bales)
   self:ensureSealGrid(bunker, data)
@@ -316,11 +333,12 @@ function BunkerManager:scanBunkerCover(bunker, data, bales)
     coveredByBale[i] = false
   end
 
-  local tireWeight = (data.seal.sealedCount or 0) * self.config.coverWeights.tire
+  local tireWeight = 0
   local baleWeight = 0
   local area = bunker.bunkerSiloArea
   local restingMin = self.config.baleRestingOffset.min
   local restingMax = self.config.baleRestingOffset.max
+  local cellHasMaterial = data.seal.cellHasMaterial or {}
 
   for _, bale in ipairs(bales or {}) do
     -- Do not count bales currently grabbed/attached by tools/loaders.
@@ -328,16 +346,60 @@ function BunkerManager:scanBunkerCover(bunker, data, bales)
       local bx, by, bz = self:getObjectWorldPosition(bale)
       if bx ~= nil and bz ~= nil and self:isPointInBunkerArea(area, bx, bz) then
         local weight, radius, halfHeight = self:getBaleWeightData(bale)
+        local isRound = bale.isRoundbale == true or bale.isRoundBale == true
+        local roundExtraDown = (self.config.roundBaleRestingExtraDown or 0)
+        local restMin = restingMin - (isRound and roundExtraDown or 0)
         local surfaceY = self:getSurfaceYAtWorldXZ(bx, bz, 0)
         local bottomY = (by or surfaceY) - (halfHeight or 0.2)
-        if bottomY >= surfaceY + restingMin and bottomY <= surfaceY + restingMax then
-          baleWeight = baleWeight + weight
+        if bottomY >= surfaceY + restMin and bottomY <= surfaceY + restingMax then
           local radius2 = radius * radius
+          local baleOverlapsMaterial = false
           for i, pos in ipairs(positions) do
             local dx = pos.x - bx
             local dz = pos.z - bz
             if dx * dx + dz * dz <= radius2 then
               coveredByBale[i] = true
+              if cellHasMaterial[i] then
+                baleOverlapsMaterial = true
+              end
+            end
+          end
+          if baleOverlapsMaterial then
+            baleWeight = baleWeight + weight
+          end
+        end
+      end
+    end
+  end
+
+  -- Seal tires from shop (Objects): vehicle instances; same grid coverage as bales; weight only if over crop.
+  local tireRadius = self.config.tireCoverRadius or 1.9
+  local tireHalfH = self.config.tireRestingHalfHeight or 0.45
+  local tireRestMin = (self.config.tireRestingOffset and self.config.tireRestingOffset.min) or -0.35
+  local tireRestMax = (self.config.tireRestingOffset and self.config.tireRestingOffset.max) or 0.45
+  local tireRadius2 = tireRadius * tireRadius
+  local vs = g_currentMission and g_currentMission.vehicleSystem
+  if vs and vs.vehicles and area ~= nil then
+    for _, vehicle in ipairs(vs.vehicles) do
+      if self:isSealTireVehicle(vehicle) then
+        local bx, by, bz = self:getObjectWorldPosition(vehicle)
+        if bx ~= nil and bz ~= nil and self:isPointInBunkerArea(area, bx, bz) then
+          local surfaceY = self:getSurfaceYAtWorldXZ(bx, bz, 0)
+          local bottomY = (by or surfaceY) - tireHalfH
+          if bottomY >= surfaceY + tireRestMin and bottomY <= surfaceY + tireRestMax then
+            local overlapsMaterial = false
+            for i, pos in ipairs(positions) do
+              local dx = pos.x - bx
+              local dz = pos.z - bz
+              if dx * dx + dz * dz <= tireRadius2 then
+                coveredByBale[i] = true
+                if cellHasMaterial[i] then
+                  overlapsMaterial = true
+                end
+              end
+            end
+            if overlapsMaterial then
+              tireWeight = tireWeight + (self.config.coverWeights.tire or 1)
             end
           end
         end

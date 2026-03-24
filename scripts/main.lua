@@ -23,6 +23,17 @@ AdvancedBunkerSealing.config = {
     min = -0.15,
     max = 0.2
   },
+  -- Extra downward tolerance for round bales lying on their side.
+  -- Their origin/center can sit lower relative to the heap surface than square bales.
+  roundBaleRestingExtraDown = 0.45,
+  -- Seal tire (objects/tireHuge*.xml, shop Objects): horizontal coverage radius vs heap grid (world meters).
+  -- Larger = fewer tires needed for full coverage; does not change the placed object's size.
+  tireCoverRadius = 3.4,
+  tireRestingHalfHeight = 0.45,
+  tireRestingOffset = {
+    min = -0.35,
+    max = 0.45
+  },
   debugPointSize = 0.5,
   -- Minimum liters in a grid cell to count as "has crop" (needs sealing).
   minCellFillLiters = 1.0,

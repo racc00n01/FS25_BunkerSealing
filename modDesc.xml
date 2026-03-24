@@ -11,11 +11,17 @@
   </title>
 
   <description>
-    <en><![CDATA[Adds a realistic bunker sealing system to silage production. Place bales on top of your bunker to improve seal quality and reduce silage losses. Poor sealing will result in lower yield, making proper coverage essential.
+    <en><![CDATA[Adds a realistic bunker sealing system to silage production. Place bales or bunker seal tires (shop: Objects, buy 1–8 like bales) on top of your bunker to improve seal quality and reduce silage losses. Poor sealing will result in lower yield, making proper coverage essential.
 ]]>    </en>
   </description>
 
   <multiplayer supported="true"/>
+
+  <!-- tireHugeUnit must be registered too: MultipleItemPurchase spawns it by path and VehicleLoadingData looks up store items. -->
+  <storeItems>
+    <storeItem xmlFilename="objects/tireHuge.xml"/>
+    <storeItem xmlFilename="objects/tireHugeUnit.xml"/>
+  </storeItems>
 
   <extraSourceFiles>
     <sourceFile filename="scripts/bunker/BunkerManager.lua"/>

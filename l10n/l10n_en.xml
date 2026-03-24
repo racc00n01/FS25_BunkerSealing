@@ -15,5 +15,7 @@
 
     <text name="advancedBunkerSealing_sealDifficulty_title" text="Seal difficulty"/>
     <text name="advancedBunkerSealing_sealDifficulty_tooltip" text="Easy makes bale coverage count more, so you need fewer bales for good sealing."/>
+
+    <text name="function_bunkerSealTire" text="Bunker sealing (adds cover weight on silage)"/>
   </texts>
 </l10n>
