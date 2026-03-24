@@ -2,22 +2,24 @@
 <modDesc descVersion="107">
   <author>Racc00n</author>
 
-  <version>0.0.0.1</version>
+  <version>1.0.0.0</version>
 
   <iconFilename>icon_advancedBunkerSealing.dds</iconFilename>
 
   <title>
     <en>Bunker Sealing</en>
+    <de>Silagen-Abschluss</de>
   </title>
 
   <description>
-    <en><![CDATA[Adds a realistic bunker sealing system to silage production. Place bales or bunker seal tires (shop: Objects, buy 1–8 like bales) on top of your bunker to improve seal quality and reduce silage losses. Poor sealing will result in lower yield, making proper coverage essential.
+    <en><![CDATA[Adds a realistic bunker sealing system to silage production. Place bales or bunker seal tires (Buyable in the shop under Miscellaneous) on top of your bunker to improve seal quality and reduce silage losses. Poor sealing will result in lower yield, making proper coverage essential.
 ]]>    </en>
+    <de><![CDATA[Fügt ein realistisches Silagen-Abschluss-System hinzu. Platziere Bündel oder Silagen-Abschluss-Reifen (im Shop unter "Sonstiges" kaufbar) auf deinem Silagen-Abschluss, um die Abschlussqualität zu verbessern und Silagen-Verluste zu reduzieren. Schlechte Abschlüsse führen zu geringeren Erträgen, sodass eine korrekte Abdeckung unerlässlich ist.
+]]>    </de>
   </description>
 
   <multiplayer supported="true"/>
 
-  <!-- tireHugeUnit must be registered too: MultipleItemPurchase spawns it by path and VehicleLoadingData looks up store items. -->
   <storeItems>
     <storeItem xmlFilename="objects/tireHuge.xml"/>
     <storeItem xmlFilename="objects/tireHugeUnit.xml"/>
