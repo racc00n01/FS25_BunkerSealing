@@ -1,16 +1,12 @@
 <?xml version="1.0" encoding="utf-8" standalone="no" ?>
 <modDesc descVersion="107">
   <author>Racc00n</author>
-
   <version>1.0.0.0</version>
-
   <iconFilename>icon_advancedBunkerSealing.dds</iconFilename>
-
   <title>
     <en>Bunker Sealing</en>
     <de>Silagen-Abschluss</de>
   </title>
-
   <description>
     <en><![CDATA[Adds a realistic bunker sealing system to silage production. Place bales or bunker seal tires (Buyable in the shop under Miscellaneous) on top of your bunker to improve seal quality and reduce silage losses. Poor sealing will result in lower yield, making proper coverage essential.
 ]]>    </en>

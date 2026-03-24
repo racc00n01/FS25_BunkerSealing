@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<l10n>
+  <texts>
+    <text name="advancedBunkerSealing_sealEfficiency" text="Abschlusswirkung: %d%%"/>
+
+    <text name="advancedBunkerSealing_settings_title" text="Erweitertes Silagen-Abschluss-System"/>
+    <text name="advancedBunkerSealing_debug_title" text="Debug-Gitter"/>
+    <text name="advancedBunkerSealing_debug_tooltip" text="Zeichne das geschlossene Zellengitter auf dem Silagen-Abschluss."/>
+
+    <text name="advancedBunkerSealing_lossFactor_title" text="Silagen-Verlust-Faktor"/>
+    <text name="advancedBunkerSealing_lossFactor_tooltip" text="Scales how strong silage loss becomes for poor sealing."/>
+
+    <text name="advancedBunkerSealing_maxLossPercent_title" text="Maximaler Silagen-Verlust"/>
+    <text name="advancedBunkerSealing_maxLossPercent_tooltip" text="Maximaler Silagen-Verlust begrenzt von 0% bis 50%."/>
+
+    <text name="advancedBunkerSealing_sealDifficulty_title" text="Abschluss-Schwierigkeit"/>
+    <text name="advancedBunkerSealing_sealDifficulty_tooltip" text="Einfach macht Bündel-Abdeckung stärker zählen, sodass du weniger Bündel für einen guten Abschluss benötigst."/>
+
+    <text name="function_bunkerSealTire" text="Silagen-Abschluss (addiert Gewicht auf Silage)"/>
+  </texts>
+</l10n>
