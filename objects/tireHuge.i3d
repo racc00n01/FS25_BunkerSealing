@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="iso-8859-1"?>
 
-<i3D name="tireHuge.i3d" version="1.6"
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://i3d.giants.ch/schema/i3d-1.6.xsd">
+<i3D name="tireHuge.i3d" version="1.6" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://i3d.giants.ch/schema/i3d-1.6.xsd">
   <Asset>
     <Export program="GIANTS Editor 64bit" version="10.0.11"/>
   </Asset>
@@ -28,7 +27,7 @@
   </Shapes>
 
   <Scene>
-    <Shape name="tireHuge" lockedgroup="true" rotation="0 0 -8.45878e-05" shapeId="1" dynamic="true" collisionFilterGroup="0x10004" collisionFilterMask="0xfe3ffb83" clipDistance="40" nodeId="10" castsShadows="true" receiveShadows="true" materialIds="6">
+    <Shape name="tireHuge" lockedgroup="true" rotation="0 0 5.54573e-06" shapeId="1" dynamic="true" collisionFilterGroup="0x10004" collisionFilterMask="0xfe3ffb83" clipDistance="40" nodeId="10" castsShadows="true" receiveShadows="true" materialIds="6">
       <Shape name="col" shapeId="2" visibility="false" nodeId="11" castsShadows="true" receiveShadows="true" materialIds="5"/>
     </Shape>
   </Scene>
