@@ -17,5 +17,6 @@
     <text name="advancedBunkerSealing_sealDifficulty_tooltip" text="Easy makes bale coverage count more, so you need fewer bales for good sealing."/>
 
     <text name="function_bunkerSealTire" text="Bunker sealing (adds cover weight on silage)"/>
+    <text name="shopItem_bunkerSealTire" text="Bunker seal tire"/>
   </texts>
 </l10n>

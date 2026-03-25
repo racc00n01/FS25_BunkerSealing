@@ -28,7 +28,7 @@ AdvancedBunkerSealing.config = {
   roundBaleRestingExtraDown = 0.45,
   -- Seal tire (objects/tireHuge*.xml, shop Objects): horizontal coverage radius vs heap grid (world meters).
   -- Larger = fewer tires needed for full coverage; does not change the placed object's size.
-  tireCoverRadius = 3.4,
+  tireCoverRadius = 3,
   tireRestingHalfHeight = 0.45,
   tireRestingOffset = {
     min = -0.35,

@@ -1,22 +1,17 @@
 <?xml version="1.0" encoding="utf-8" standalone="no"?>
-<!-- Shop: Objects tab, buy 1–8 tires (same pattern as base game buyable bales). -->
-<vehicle type="multipleItemPurchase">
+<vehicle type="multipleItemPurchase" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../shared/xml/schema/vehicle.xsd">
     <annotation>Bunker seal tire (multi purchase)</annotation>
 
     <storeData>
-        <name>
-            <en>Bunker seal tire</en>
-            <de>Bunker-Abdichtungsreifen</de>
-        </name>
+        <name>$l10n_shopItem_bunkerSealTire</name>
         <specs>
             <weight minValue="0"/>
         </specs>
         <functions>
             <function>$l10n_function_bunkerSealTire</function>
         </functions>
-        <image>objects/tireHuge.dds</image>
-        <!-- Base price for 1 unit when using tier name="1" price="0" -->
-        <price>450</price>
+        <image>objects/store_tireHuge.dds</image>
+        <price>100</price>
         <lifetime>600</lifetime>
         <allowLeasing>false</allowLeasing>
         <canBeSold>true</canBeSold>
@@ -44,13 +39,11 @@
         </components>
     </base>
 
-    <!-- Spawn pallet tires (vehicles); not bales — no fillType / baleVariationId -->
     <multipleItemPurchase filename="objects/tireHugeUnit.xml" isVehicle="true">
         <offsets>
             <offset amount="1" offset="0 0 0.35"/>
             <offset amount="5" offset="0 0 0"/>
         </offsets>
-        <!-- Shop preview stack (scaled for tire size vs square bales) -->
         <itemPositions>
             <itemPosition position="0 0.35 -0.45" rotation="0 90 0"/>
             <itemPosition position="0 1.05 -0.45" rotation="0 90 0"/>
@@ -63,15 +56,14 @@
         </itemPositions>
     </multipleItemPurchase>
 
-    <!-- Total price per quantity tier (450 per tire); tier 1 uses storeData.price when price 0 -->
     <multipleItemPurchaseAmountConfigurations>
         <multipleItemPurchaseAmountConfiguration name="1" price="0"/>
-        <multipleItemPurchaseAmountConfiguration name="2" price="900"/>
-        <multipleItemPurchaseAmountConfiguration name="3" price="1350"/>
-        <multipleItemPurchaseAmountConfiguration name="4" price="1800"/>
-        <multipleItemPurchaseAmountConfiguration name="5" price="2250"/>
-        <multipleItemPurchaseAmountConfiguration name="6" price="2700"/>
-        <multipleItemPurchaseAmountConfiguration name="7" price="3150"/>
-        <multipleItemPurchaseAmountConfiguration name="8" price="3600"/>
+        <multipleItemPurchaseAmountConfiguration name="2" price="200"/>
+        <multipleItemPurchaseAmountConfiguration name="3" price="300"/>
+        <multipleItemPurchaseAmountConfiguration name="4" price="400"/>
+        <multipleItemPurchaseAmountConfiguration name="5" price="500"/>
+        <multipleItemPurchaseAmountConfiguration name="6" price="600"/>
+        <multipleItemPurchaseAmountConfiguration name="7" price="700"/>
+        <multipleItemPurchaseAmountConfiguration name="8" price="800"/>
     </multipleItemPurchaseAmountConfigurations>
 </vehicle>
