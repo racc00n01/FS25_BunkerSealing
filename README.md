@@ -23,6 +23,6 @@ In the **in-game menu**, open **Settings** and find the **Bunker Sealing** secti
 
 Multiplayer games use the **host’s** settings.
 
----
-
-_Author: Racc00n_
+## Discord
+Join my discord for more updates and exlcusive insight on what's coming next
+https://discord.gg/fVYvxqSeA7
