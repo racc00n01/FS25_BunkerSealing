@@ -1,28 +1,30 @@
 <?xml version="1.0" encoding="utf-8" standalone="no"?>
-<!-- Single spawned tire (not listed in shop). Spawned by objects/tireHuge.xml multipleItemPurchase. -->
-<!-- REQUIRED: vehicle.base.components.component — without it, Vehicle.lua loads zero components (components[1] nil → .node / .isStatic errors). -->
-<vehicle type="pallet" allowPickingUp="true">
+<vehicle type="pallet" allowPickingUp="true"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../shared/xml/schema/vehicle.xsd">
     <annotation>Bunker seal tire</annotation>
     <storeData>
-        <name>
-            <en>Bunker seal tire</en>
-            <de>Bunker-Abdichtungsreifen</de>
-        </name>
-        <!-- Non-zero price helps Vehicle load path use default component init (same as parent shop item). -->
-        <price>450</price>
+        <name>$l10n_shopItem_bunkerSealTire</name>
+        <!-- ONLY FOR ICON GENERATION / DescBuilder -->
+        <image>objects/store_tireHuge.dds</image>
+        <brand>LIZARD</brand>
+        <category>MISC</category>
+        <storeIconRendering>
+            <settings cameraXRot="-15" cameraYRot="25"/>
+        </storeIconRendering>
+        <price>100</price>
         <showInStore>false</showInStore>
     </storeData>
     <base>
         <typeDesc>OBJECT</typeDesc>
         <filename>objects/tireHuge.i3d</filename>
-        <mapHotspot type="NONE"/>
+        <showInVehicleMenu>false</showInVehicleMenu>
+        <mapHotspot available="false"/>
         <supportsPickUp>true</supportsPickUp>
         <size width="2" length="2" height="1.5"/>
         <components>
             <component centerOfMass="0 0 0" solverIterationCount="10" mass="80"/>
         </components>
     </base>
-    <!-- Care wheel on component root (matches tireHuge.i3d: first component = tireHuge_component0). -->
     <wheels>
         <wheelConfigurations>
             <wheelConfiguration name="default" price="0" saveId="1">

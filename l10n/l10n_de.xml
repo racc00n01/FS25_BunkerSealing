@@ -3,7 +3,7 @@
   <texts>
     <text name="advancedBunkerSealing_sealEfficiency" text="Abschlusswirkung: %d%%"/>
 
-    <text name="advancedBunkerSealing_settings_title" text="Erweitertes Silagen-Abschluss-System"/>
+    <text name="advancedBunkerSealing_settings_title" text="Silagen-Abschluss-System"/>
     <text name="advancedBunkerSealing_debug_title" text="Debug-Gitter"/>
     <text name="advancedBunkerSealing_debug_tooltip" text="Zeichne das geschlossene Zellengitter auf dem Silagen-Abschluss."/>
 
@@ -16,6 +16,13 @@
     <text name="advancedBunkerSealing_sealDifficulty_title" text="Abschluss-Schwierigkeit"/>
     <text name="advancedBunkerSealing_sealDifficulty_tooltip" text="Einfach macht Bündel-Abdeckung stärker zählen, sodass du weniger Bündel für einen guten Abschluss benötigst."/>
 
+    <text name="advancedBunkerSealing_tireCoverRadius_title" text="Abdeckradius Abdichtungsreifen"/>
+    <text name="advancedBunkerSealing_tireCoverRadius_tooltip" text="Reichweite jedes Abdichtungsreifens auf dem Silage-Gitter. Größere Werte benötigen weniger Reifen für volle Abdeckung."/>
+
+    <text name="advancedBunkerSealing_baleCoverMult_title" text="Bündel-Abdeckradius"/>
+    <text name="advancedBunkerSealing_baleCoverMult_tooltip" text="Multipliziert die Fußabdruck-Reichweite jedes Bündels auf dem Silage-Gitter. Höhere Werte decken mehr Zellen pro Bündel ab."/>
+
     <text name="function_bunkerSealTire" text="Silagen-Abschluss (addiert Gewicht auf Silage)"/>
+    <text name="shopItem_bunkerSealTire" text="Silagen-Abschluss-Reifen"/>
   </texts>
 </l10n>

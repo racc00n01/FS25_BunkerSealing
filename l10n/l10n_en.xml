@@ -3,7 +3,7 @@
   <texts>
     <text name="advancedBunkerSealing_sealEfficiency" text="Seal efficiency: %d%%"/>
 
-    <text name="advancedBunkerSealing_settings_title" text="Advanced Bunker Sealing"/>
+    <text name="advancedBunkerSealing_settings_title" text="Bunker Sealing"/>
     <text name="advancedBunkerSealing_debug_title" text="Debug grid"/>
     <text name="advancedBunkerSealing_debug_tooltip" text="Draw the sealed cell grid on bunker surface."/>
 
@@ -16,6 +16,13 @@
     <text name="advancedBunkerSealing_sealDifficulty_title" text="Seal difficulty"/>
     <text name="advancedBunkerSealing_sealDifficulty_tooltip" text="Easy makes bale coverage count more, so you need fewer bales for good sealing."/>
 
+    <text name="advancedBunkerSealing_tireCoverRadius_title" text="Seal tire coverage radius"/>
+    <text name="advancedBunkerSealing_tireCoverRadius_tooltip" text="How far each bunker seal tire reaches on the silage grid. Larger values need fewer tires for full coverage."/>
+
+    <text name="advancedBunkerSealing_baleCoverMult_title" text="Bale coverage radius"/>
+    <text name="advancedBunkerSealing_baleCoverMult_tooltip" text="Multiplies each bale's footprint on the silage grid. Higher values cover more cells per bale."/>
+
     <text name="function_bunkerSealTire" text="Bunker sealing (adds cover weight on silage)"/>
+    <text name="shopItem_bunkerSealTire" text="Bunker seal tire"/>
   </texts>
 </l10n>
