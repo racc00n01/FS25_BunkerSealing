@@ -346,6 +346,8 @@ function BunkerManager:scanBunkerCover(bunker, data, bales)
       local bx, by, bz = self:getObjectWorldPosition(bale)
       if bx ~= nil and bz ~= nil and self:isPointInBunkerArea(area, bx, bz) then
         local weight, radius, halfHeight = self:getBaleWeightData(bale)
+        local baleCoverMult = self.config.baleCoverRadiusMultiplier or 1.0
+        radius = radius * baleCoverMult
         local isRound = bale.isRoundbale == true or bale.isRoundBale == true
         local roundExtraDown = (self.config.roundBaleRestingExtraDown or 0)
         local restMin = restingMin - (isRound and roundExtraDown or 0)

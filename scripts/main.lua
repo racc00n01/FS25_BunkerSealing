@@ -29,6 +29,8 @@ AdvancedBunkerSealing.config = {
   -- Seal tire (objects/tireHuge*.xml, shop Objects): horizontal coverage radius vs heap grid (world meters).
   -- Larger = fewer tires needed for full coverage; does not change the placed object's size.
   tireCoverRadius = 3,
+  -- Multiplier on bale footprint radius for grid coverage only (1 = use bale dimensions as before).
+  baleCoverRadiusMultiplier = 1.0,
   tireRestingHalfHeight = 0.45,
   tireRestingOffset = {
     min = -0.35,
@@ -162,6 +164,11 @@ function AdvancedBunkerSealing.onBunkerUpdate(self, superFunc, dt)
 
   -- Only show when the player can interact with the bunker.
   if not self:getCanInteract(true) then
+    return
+  end
+
+  -- Seal efficiency only applies while the bunker is sealed; hide once it is opened for unloading.
+  if self.state == BunkerSilo.STATE_DRAIN or self.isOpenedAtFront or self.isOpenedAtBack then
     return
   end
 

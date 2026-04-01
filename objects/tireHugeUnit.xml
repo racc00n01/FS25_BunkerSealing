@@ -17,7 +17,8 @@
     <base>
         <typeDesc>OBJECT</typeDesc>
         <filename>objects/tireHuge.i3d</filename>
-        <mapHotspot type="NONE"/>
+        <showInVehicleMenu>false</showInVehicleMenu>
+        <mapHotspot available="false"/>
         <supportsPickUp>true</supportsPickUp>
         <size width="2" length="2" height="1.5"/>
         <components>

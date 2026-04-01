@@ -25,7 +25,9 @@ AdvancedBunkerSealingSettings.current = {
   lossFactor = 1.0,
   maxLossPercent = 0.5,
   -- Hard = 0.8, Medium = 1.05, Easy = 1.2
-  sealCoverageFactor = 1.05
+  sealCoverageFactor = 1.05,
+  tireCoverRadius = 3.0,
+  baleCoverRadiusMultiplier = 1.0
 }
 AdvancedBunkerSealingSettings.controls = {}
 
@@ -38,6 +40,8 @@ function AdvancedBunkerSealingSettings:applyToModConfig()
   cfg.lossFactor = self.current.lossFactor
   cfg.maxLossPercent = self.current.maxLossPercent
   cfg.sealCoverageFactor = self.current.sealCoverageFactor
+  cfg.tireCoverRadius = self.current.tireCoverRadius
+  cfg.baleCoverRadiusMultiplier = self.current.baleCoverRadiusMultiplier
 end
 
 function AdvancedBunkerSealingSettings:getStateIndex(values, value)
@@ -65,6 +69,8 @@ function AdvancedBunkerSealingSettingsEvent.new(settings)
   self.lossFactor = settings.lossFactor
   self.maxLossPercent = settings.maxLossPercent
   self.sealCoverageFactor = settings.sealCoverageFactor
+  self.tireCoverRadius = settings.tireCoverRadius
+  self.baleCoverRadiusMultiplier = settings.baleCoverRadiusMultiplier
   return self
 end
 
@@ -73,6 +79,8 @@ function AdvancedBunkerSealingSettingsEvent:readStream(streamId, connection)
   self.lossFactor = streamReadFloat32(streamId)
   self.maxLossPercent = streamReadFloat32(streamId)
   self.sealCoverageFactor = streamReadFloat32(streamId)
+  self.tireCoverRadius = streamReadFloat32(streamId)
+  self.baleCoverRadiusMultiplier = streamReadFloat32(streamId)
   self:run(connection)
 end
 
@@ -81,6 +89,8 @@ function AdvancedBunkerSealingSettingsEvent:writeStream(streamId, connection)
   streamWriteFloat32(streamId, self.lossFactor)
   streamWriteFloat32(streamId, self.maxLossPercent)
   streamWriteFloat32(streamId, self.sealCoverageFactor)
+  streamWriteFloat32(streamId, self.tireCoverRadius)
+  streamWriteFloat32(streamId, self.baleCoverRadiusMultiplier)
 end
 
 function AdvancedBunkerSealingSettingsEvent:run(connection)
@@ -90,6 +100,8 @@ function AdvancedBunkerSealingSettingsEvent:run(connection)
     AdvancedBunkerSealingSettings.current.lossFactor = self.lossFactor
     AdvancedBunkerSealingSettings.current.maxLossPercent = self.maxLossPercent
     AdvancedBunkerSealingSettings.current.sealCoverageFactor = self.sealCoverageFactor
+    AdvancedBunkerSealingSettings.current.tireCoverRadius = self.tireCoverRadius
+    AdvancedBunkerSealingSettings.current.baleCoverRadiusMultiplier = self.baleCoverRadiusMultiplier
     AdvancedBunkerSealingSettings:applyToModConfig()
   else
     -- Server side
@@ -97,6 +109,8 @@ function AdvancedBunkerSealingSettingsEvent:run(connection)
     AdvancedBunkerSealingSettings.current.lossFactor = self.lossFactor
     AdvancedBunkerSealingSettings.current.maxLossPercent = self.maxLossPercent
     AdvancedBunkerSealingSettings.current.sealCoverageFactor = self.sealCoverageFactor
+    AdvancedBunkerSealingSettings.current.tireCoverRadius = self.tireCoverRadius
+    AdvancedBunkerSealingSettings.current.baleCoverRadiusMultiplier = self.baleCoverRadiusMultiplier
     AdvancedBunkerSealingSettings:applyToModConfig()
 
     if g_server ~= nil then
@@ -178,11 +192,29 @@ function AdvancedBunkerSealingSettings:updateGameSettings()
   if scCtrl ~= nil then
     scCtrl:setState(self:getStateIndex(self.SEAL_COVERAGE_VALUES, self.current.sealCoverageFactor))
   end
+
+  local trCtrl = self.controls.tireCoverRadius
+  if trCtrl ~= nil then
+    trCtrl:setState(self:getStateIndex(self.TIRE_COVER_RADIUS_VALUES, self.current.tireCoverRadius))
+  end
+
+  local bcCtrl = self.controls.baleCoverRadiusMultiplier
+  if bcCtrl ~= nil then
+    bcCtrl:setState(self:getStateIndex(self.BALE_COVER_MULT_VALUES, self.current.baleCoverRadiusMultiplier))
+  end
 end
 
 -- Seal difficulty UI choices (global coverage scaling).
 AdvancedBunkerSealingSettings.SEAL_COVERAGE_VALUES = { 1.2, 1.4, 1.6 }
 AdvancedBunkerSealingSettings.SEAL_COVERAGE_STRINGS = { "Hard", "Medium", "Easy" }
+
+-- Horizontal seal coverage radius for bunker seal tires (world meters).
+AdvancedBunkerSealingSettings.TIRE_COVER_RADIUS_VALUES = { 1.5, 2.0, 2.5, 3.0, 3.5, 4.0 }
+AdvancedBunkerSealingSettings.TIRE_COVER_RADIUS_STRINGS = { "1.5 m", "2.0 m", "2.5 m", "3.0 m", "3.5 m", "4.0 m" }
+
+-- Multiplier on bale footprint radius for grid coverage.
+AdvancedBunkerSealingSettings.BALE_COVER_MULT_VALUES = { 1.0, 1.25, 1.5, 1.75, 2.0 }
+AdvancedBunkerSealingSettings.BALE_COVER_MULT_STRINGS = { "1.0x", "1.25x", "1.5x", "1.75x", "2.0x" }
 
 function AdvancedBunkerSealingSettings:addBinarySettingsOption(scrollPanel, settingsPage, settingName, titleKey,
                                                                tooltipKey)
@@ -295,6 +327,14 @@ function AdvancedBunkerSealingSettings:extendSettingsScreen()
     self.SEAL_COVERAGE_VALUES, self.SEAL_COVERAGE_STRINGS,
     "advancedBunkerSealing_sealDifficulty_title", "advancedBunkerSealing_sealDifficulty_tooltip")
 
+  self:addMultiTextSettingsOption(scrollPanel, settingsPage, "tireCoverRadius",
+    self.TIRE_COVER_RADIUS_VALUES, self.TIRE_COVER_RADIUS_STRINGS,
+    "advancedBunkerSealing_tireCoverRadius_title", "advancedBunkerSealing_tireCoverRadius_tooltip")
+
+  self:addMultiTextSettingsOption(scrollPanel, settingsPage, "baleCoverRadiusMultiplier",
+    self.BALE_COVER_MULT_VALUES, self.BALE_COVER_MULT_STRINGS,
+    "advancedBunkerSealing_baleCoverMult_title", "advancedBunkerSealing_baleCoverMult_tooltip")
+
   scrollPanel:invalidateLayout()
 end
 
@@ -310,6 +350,10 @@ function AdvancedBunkerSealingSettings.init()
         AdvancedBunkerSealingSettings.current.maxLossPercent
     AdvancedBunkerSealingSettings.current.sealCoverageFactor = cfg.sealCoverageFactor ~= nil and cfg.sealCoverageFactor or
         AdvancedBunkerSealingSettings.current.sealCoverageFactor
+    AdvancedBunkerSealingSettings.current.tireCoverRadius = cfg.tireCoverRadius ~= nil and cfg.tireCoverRadius or
+        AdvancedBunkerSealingSettings.current.tireCoverRadius
+    AdvancedBunkerSealingSettings.current.baleCoverRadiusMultiplier = cfg.baleCoverRadiusMultiplier ~= nil and
+        cfg.baleCoverRadiusMultiplier or AdvancedBunkerSealingSettings.current.baleCoverRadiusMultiplier
   end
 
   AdvancedBunkerSealingSettings:applyToModConfig()
