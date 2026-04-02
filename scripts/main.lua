@@ -2,6 +2,8 @@ AdvancedBunkerSealing = {}
 AdvancedBunkerSealing.dir = g_currentModDirectory
 AdvancedBunkerSealing.modName = g_currentModName
 
+AdvancedBunkerSealing.SaveKey = "BunkerSealing"
+
 AdvancedBunkerSealing.config = {
   debug = false,
   gridCellSize = 0.5,
@@ -61,6 +63,30 @@ function AdvancedBunkerSealing:deleteMap()
   end
 end
 
+function AdvancedBunkerSealing:loadFromXmlFile()
+  if not g_currentMission:getIsServer() then return end
+  g_currentMission.AdvancedBunkerSealing.BunkerManager:finishModLoadAfterMissionStart()
+end
+
+function AdvancedBunkerSealing:saveToXmlFile()
+  if (not g_currentMission:getIsServer()) then return end
+
+  local savegameFolderPath = g_currentMission.missionInfo.savegameDirectory;
+  if savegameFolderPath == nil then
+    savegameFolderPath = ('%ssavegame%d'):format(getUserProfileAppPath(), g_currentMission.missionInfo.savegameIndex)
+  end
+  savegameFolderPath = savegameFolderPath .. "/"
+
+  local xmlFile = createXMLFile(AdvancedBunkerSealing.SaveKey,
+    savegameFolderPath .. AdvancedBunkerSealing.SaveKey .. ".xml",
+    AdvancedBunkerSealing.SaveKey)
+
+  g_currentMission.AdvancedBunkerSealing.BunkerManager:saveToXmlFile(xmlFile)
+
+  saveXMLFile(xmlFile)
+  delete(xmlFile)
+end
+
 function AdvancedBunkerSealing:update(dt)
   self.BunkerManager:update(dt)
 end
@@ -79,8 +105,8 @@ function AdvancedBunkerSealing:drawDebugGrid()
   end
   if self.BunkerManager == nil then return end
 
-  for bunker, _ in pairs(self.BunkerManager.tracked) do
-    local data = self.BunkerManager:getOrCreateBunkerData(bunker)
+  for _, bunker in pairs(self.BunkerManager.tracked) do
+    local data = bunker.bunkerSealing
     if data and data.seal and data.seal.cellPositions and #data.seal.cellPositions > 0 then
       local positions = data.seal.cellPositions
       local cells = data.seal.cells
@@ -168,17 +194,17 @@ function AdvancedBunkerSealing.onBunkerUpdate(self, superFunc, dt)
   end
 
   -- Seal efficiency only applies while the bunker is sealed; hide once it is opened for unloading.
-  if self.state == BunkerSilo.STATE_DRAIN or self.isOpenedAtFront or self.isOpenedAtBack then
+  if self.state == BunkerSilo.STATE_DRAIN or self.state == BunkerSilo.STATE_FERMENTED or self.isOpenedAtFront or self.isOpenedAtBack then
     return
   end
 
   local manager = g_currentMission.AdvancedBunkerSealing.BunkerManager
-  local data = manager:getOrCreateBunkerData(self) or nil
-  if not data or not data.sealEfficiency then
-    return
-  end
+  local data = manager:getOrCreateBunkerData(self)
+  if data == nil then return end
+  local sealEff = (data.seal and data.seal.sealEfficiency) or data.sealEfficiency
+  if sealEff == nil then return end
 
-  local sealPct = math.floor((data.sealEfficiency or 0) * 100 + 0.5)
+  local sealPct = math.floor((sealEff or 0) * 100 + 0.5)
   g_currentMission:addExtraPrintText(string.format(g_i18n:getText("advancedBunkerSealing_sealEfficiency"), sealPct))
 end
 
@@ -188,5 +214,14 @@ BunkerSilo.openSilo = Utils.overwrittenFunction(BunkerSilo.openSilo, AdvancedBun
 BunkerSilo.updateFillLevel = Utils.overwrittenFunction(BunkerSilo.updateFillLevel,
   AdvancedBunkerSealing.onBunkerUpdateFillLevel)
 BunkerSilo.update = Utils.overwrittenFunction(BunkerSilo.update, AdvancedBunkerSealing.onBunkerUpdate)
+
+FSBaseMission.onStartMission = Utils.appendedFunction(FSBaseMission.onStartMission, function()
+  local abs = g_currentMission and g_currentMission.AdvancedBunkerSealing
+  if abs then
+    abs:loadFromXmlFile()
+  end
+end)
+
+FSBaseMission.saveSavegame = Utils.appendedFunction(FSBaseMission.saveSavegame, AdvancedBunkerSealing.saveToXmlFile)
 
 addModEventListener(AdvancedBunkerSealing)
