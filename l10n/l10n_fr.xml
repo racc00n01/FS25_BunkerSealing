@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<l10n>
+  <texts>
+    <text name="advancedBunkerSealing_sealEfficiency" text="Efficacité du bâchage : %d%%"/>
+
+    <text name="advancedBunkerSealing_settings_title" text="Bâchage des silos couloir"/>
+    <text name="advancedBunkerSealing_debug_title" text="Grille de débogage"/>
+    <text name="advancedBunkerSealing_debug_tooltip" text="Affiche la grille d'étanchéité à la surface du silo."/>
+
+    <text name="advancedBunkerSealing_lossFactor_title" text="Facteur de perte d'ensilage"/>
+    <text name="advancedBunkerSealing_lossFactor_tooltip" text="Définit l'ampleur des pertes d'ensilage en cas de mauvais bâchage."/>
+
+    <text name="advancedBunkerSealing_maxLossPercent_title" text="Perte maximale d'ensilage"/>
+    <text name="advancedBunkerSealing_maxLossPercent_tooltip" text="Pertes maximales d'ensilage plafonnées entre 0% et 50%."/>
+
+    <text name="advancedBunkerSealing_sealDifficulty_title" text="Difficulté de fermeture"/>
+    <text name="advancedBunkerSealing_sealDifficulty_tooltip" text="Facile augmente l'efficacité de chaque balle, nécessitant moins de balles pour un bon bâchage."/>
+
+    <text name="advancedBunkerSealing_tireCoverRadius_title" text="Rayon de couverture du pneu"/>
+    <text name="advancedBunkerSealing_tireCoverRadius_tooltip" text="Portée de couverture de chaque pneu sur la grille d'ensilage. Une valeur plus élevée nécessite moins de pneus."/>
+
+    <text name="advancedBunkerSealing_baleCoverMult_title" text="Rayon de couverture des balles"/>
+    <text name="advancedBunkerSealing_baleCoverMult_tooltip" text="Multiplie l'empreinte de chaque balle sur la grille d'ensilage. Une valeur plus élevée couvre plus de cellules."/>
+
+    <text name="function_bunkerSealTire" text="Lestage pour silo couloir (ajoute du poids sur l'ensilage)"/>
+    <text name="shopItem_bunkerSealTire" text="Pneu de lestage pour silo"/>
+  </texts>
+</l10n>
+
