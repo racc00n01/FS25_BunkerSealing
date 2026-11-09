@@ -6,12 +6,15 @@
   <title>
     <en>Bunker Sealing</en>
     <de>Silagen-Abschluss</de>
+    <fr>Bâchage des Silos Couloir</fr>
   </title>
   <description>
     <en><![CDATA[Adds a realistic bunker sealing system to silage production. Place bales or bunker seal tires (Buyable in the shop under Miscellaneous) on top of your bunker to improve seal quality and reduce silage losses. Poor sealing will result in lower yield, making proper coverage essential.
 ]]>    </en>
     <de><![CDATA[Fügt ein realistisches Silagen-Abschluss-System hinzu. Platziere Bündel oder Silagen-Abschluss-Reifen (im Shop unter "Sonstiges" kaufbar) auf deinem Silagen-Abschluss, um die Abschlussqualität zu verbessern und Silagen-Verluste zu reduzieren. Schlechte Abschlüsse führen zu geringeren Erträgen, sodass eine korrekte Abdeckung unerlässlich ist.
 ]]>    </de>
+    <fr><![CDATA[Ajoute un système réaliste de fermeture des silos couloir pour la production d'ensilage. Placez des balles ou des pneus de lestage (achetables en boutique dans Divers) sur votre silo pour améliorer l'étanchéité et réduire les pertes. Une mauvaise couverture entraînera une baisse de rendement.
+]]>    </fr>
   </description>
 
   <multiplayer supported="true"/>
